@@ -15,6 +15,7 @@ export interface Quiz {
   questions?: Question[];
   category: string;
   time_limit?: number; // in minutes
+  max_attempts?: number; // maximum attempts per user
 }
 
 export interface Question {

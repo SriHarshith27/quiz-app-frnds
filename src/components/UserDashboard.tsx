@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Play, Trophy, Clock, Target, TrendingUp, CheckCircle, XCircle } from 'lucide-react';
+import { Play, Trophy, Clock, Target, TrendingUp, CheckCircle, XCircle, Users } from 'lucide-react';
 import { Quiz, QuizAttempt, UserProgress, UserAnswer } from '../types';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
@@ -33,7 +33,7 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({
         setting_value: user.username
       });
 
-      // Load available quizzes with question counts
+      // Load available quizzes with question counts and attempt counts
       const { data: quizzesData } = await supabase
         .from('quizzes')
         .select(`
@@ -234,22 +234,41 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({
                         {quiz.time_limit}min
                       </span>
                     )}
+                    {quiz.max_attempts && (
+                      <span className="flex items-center">
+                        <Users className="w-3 h-3 mr-1" />
+                        {quiz.max_attempts} attempts
+                      </span>
+                    )}
                   </div>
                 </div>
                 
                 {(() => {
-                  const hasAttempted = userProgress?.recentAttempts.some(attempt => attempt.quiz_id === quiz.id);
+                  const userAttempts = userProgress?.recentAttempts.filter(attempt => attempt.quiz_id === quiz.id) || [];
+                  const hasAttempted = userAttempts.length > 0;
+                  const canAttempt = !quiz.max_attempts || userAttempts.length < quiz.max_attempts;
+                  
                   return (
                     <button
                       onClick={() => onTakeQuiz(quiz)}
+                      disabled={!canAttempt}
                       className={`w-full py-2 px-4 rounded-lg transition-colors flex items-center justify-center space-x-2 ${
-                        hasAttempted 
-                          ? 'bg-green-600 hover:bg-green-700 text-white'
-                          : 'bg-blue-600 hover:bg-blue-700 text-white'
+                        !canAttempt
+                          ? 'bg-gray-600 text-gray-400 cursor-not-allowed'
+                          : hasAttempted 
+                            ? 'bg-green-600 hover:bg-green-700 text-white'
+                            : 'bg-blue-600 hover:bg-blue-700 text-white'
                       }`}
                     >
                       <Play className="w-4 h-4" />
-                      <span>{hasAttempted ? 'Re-attempt Quiz' : 'Take Quiz'}</span>
+                      <span>
+                        {!canAttempt 
+                          ? `Max attempts reached (${userAttempts.length}/${quiz.max_attempts})`
+                          : hasAttempted 
+                            ? `Re-attempt Quiz (${userAttempts.length}/${quiz.max_attempts || '∞'})`
+                            : 'Take Quiz'
+                        }
+                      </span>
                     </button>
                   );
                 })()}

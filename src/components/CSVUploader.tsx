@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Upload, FileText, ArrowLeft, Save, Edit3, Clock } from 'lucide-react';
+import { Upload, FileText, ArrowLeft, Save, Edit3, Clock, Users } from 'lucide-react';
 import { useDropzone } from 'react-dropzone';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
@@ -25,6 +25,7 @@ export const CSVUploader: React.FC<CSVUploaderProps> = ({ onBack, onSave }) => {
   const [quizDescription, setQuizDescription] = useState('');
   const [category, setCategory] = useState('General');
   const [timeLimit, setTimeLimit] = useState<number>(30); // Default 30 minutes
+  const [maxAttempts, setMaxAttempts] = useState<number | null>(null); // Default unlimited
   const [processing, setProcessing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [step, setStep] = useState<'upload' | 'edit'>('upload');
@@ -132,6 +133,7 @@ export const CSVUploader: React.FC<CSVUploaderProps> = ({ onBack, onSave }) => {
           description: quizDescription.trim(),
           category,
           time_limit: timeLimit,
+          max_attempts: maxAttempts,
           created_by: user?.id
         }])
         .select()
@@ -270,7 +272,7 @@ export const CSVUploader: React.FC<CSVUploaderProps> = ({ onBack, onSave }) => {
       <div className="bg-gray-800 rounded-xl p-6 border border-gray-700">
         <h3 className="text-xl font-semibold text-white mb-6">Quiz Details</h3>
         
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
           <div>
             <label className="block text-sm font-medium text-gray-300 mb-2">Title</label>
             <input
@@ -312,6 +314,23 @@ export const CSVUploader: React.FC<CSVUploaderProps> = ({ onBack, onSave }) => {
               className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
               placeholder="30"
             />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-300 mb-2 flex items-center">
+              <Users className="w-4 h-4 mr-1" />
+              Max Attempts
+            </label>
+            <input
+              type="number"
+              value={maxAttempts || ''}
+              onChange={(e) => setMaxAttempts(e.target.value ? parseInt(e.target.value) : null)}
+              min="1"
+              max="10"
+              className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+              placeholder="Unlimited"
+            />
+            <p className="text-xs text-gray-500 mt-1">Leave empty for unlimited</p>
           </div>
         </div>
         

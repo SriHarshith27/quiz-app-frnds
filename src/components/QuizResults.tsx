@@ -250,6 +250,89 @@ ${weakAreas.length > 0
         </motion.div>
       )}
 
+      {/* Detailed Answers Review */}
+      {showDetailedAnswers && detailedAnswers.length > 0 && (
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.5 }}
+          className="bg-gray-800 rounded-xl p-6 border border-gray-700"
+        >
+          <h3 className="text-xl font-semibold text-white mb-6 flex items-center">
+            <Eye className="w-6 h-6 mr-2 text-blue-400" />
+            Detailed Answer Review
+          </h3>
+          
+          <div className="space-y-6">
+            {detailedAnswers.map((answer, index) => (
+              <div key={index} className="border border-gray-700 rounded-lg p-4">
+                <div className="flex items-start justify-between mb-3">
+                  <h4 className="text-lg font-medium text-white">Question {index + 1}</h4>
+                  <div className={`flex items-center space-x-2 px-3 py-1 rounded-full text-sm font-medium ${
+                    answer.isCorrect 
+                      ? 'bg-green-900 text-green-300' 
+                      : 'bg-red-900 text-red-300'
+                  }`}>
+                    {answer.isCorrect ? (
+                      <CheckCircle className="w-4 h-4" />
+                    ) : (
+                      <XCircle className="w-4 h-4" />
+                    )}
+                    <span>{answer.isCorrect ? 'Correct' : 'Incorrect'}</span>
+                  </div>
+                </div>
+                
+                <div className="mb-4">
+                  <p className="text-gray-300 mb-2">{answer.question}</p>
+                  <span className="text-xs bg-gray-700 px-2 py-1 rounded text-gray-400">
+                    {answer.category}
+                  </span>
+                </div>
+                
+                <div className="space-y-2">
+                  {answer.options.map((option: string, optionIndex: number) => (
+                    <div
+                      key={optionIndex}
+                      className={`p-3 rounded-lg border ${
+                        optionIndex === answer.correctAnswer && optionIndex === answer.userAnswer
+                          ? 'border-green-500 bg-green-900/20 text-green-300' // Correct answer selected
+                          : optionIndex === answer.correctAnswer
+                          ? 'border-green-500 bg-green-900/10 text-green-400' // Correct answer not selected
+                          : optionIndex === answer.userAnswer
+                          ? 'border-red-500 bg-red-900/20 text-red-300' // Wrong answer selected
+                          : 'border-gray-600 bg-gray-700/50 text-gray-400' // Not selected
+                      }`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <span>{option}</span>
+                        <div className="flex items-center space-x-2">
+                          {optionIndex === answer.userAnswer && (
+                            <span className="text-xs bg-blue-600 px-2 py-1 rounded text-white">
+                              Your Answer
+                            </span>
+                          )}
+                          {optionIndex === answer.correctAnswer && (
+                            <span className="text-xs bg-green-600 px-2 py-1 rounded text-white">
+                              Correct
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                
+                {answer.userAnswer === null && (
+                  <div className="mt-3 p-2 bg-yellow-900/20 rounded border border-yellow-700">
+                    <p className="text-yellow-300 text-sm">⚠️ This question was not answered</p>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </motion.div>
+      )}
+
       {/* Strengths and Improvements */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <motion.div

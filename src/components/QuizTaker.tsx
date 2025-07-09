@@ -114,6 +114,21 @@ export const QuizTaker: React.FC<QuizTakerProps> = ({ quiz, onBack, onComplete }
   };
 
   const handleSubmit = async () => {
+    // Check if user has exceeded attempt limit
+    if (quiz.max_attempts) {
+      const { data: existingAttempts } = await supabase
+        .from('quiz_attempts')
+        .select('id')
+        .eq('user_id', user?.id)
+        .eq('quiz_id', quiz.id);
+      
+      if (existingAttempts && existingAttempts.length >= quiz.max_attempts) {
+        alert('You have reached the maximum number of attempts for this quiz.');
+        onBack();
+        return;
+      }
+    }
+
     const score = answers.filter(a => a.is_correct).length;
     const timeCompleted = Date.now();
     const timeTaken = Math.round((timeCompleted - timeStarted) / 1000);

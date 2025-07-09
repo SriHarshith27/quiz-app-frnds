@@ -118,6 +118,21 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         return;
       }
 
+      // Get detailed answers for each attempt
+      const detailedAttempts = await Promise.all(
+        attempts.map(async (attempt) => {
+          const { data: questions } = await supabase
+            .from('questions')
+            .select('*')
+            .eq('quiz_id', attempt.quiz_id)
+            .order('created_at');
+          
+          return {
+            ...attempt,
+            questions: questions || []
+          };
+        })
+      );
       let reportContent = `Quiz Performance Report for ${username}\n`;
       reportContent += `Generated on: ${new Date().toLocaleDateString()}\n`;
       reportContent += `${'='.repeat(50)}\n\n`;
@@ -137,7 +152,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       reportContent += `DETAILED RESULTS\n`;
       reportContent += `${'='.repeat(20)}\n`;
 
-      for (const attempt of attempts) {
+      for (const attempt of detailedAttempts) {
         const percentage = Math.round((attempt.score / attempt.total_questions) * 100);
         reportContent += `\nQuiz: ${attempt.quizzes?.title || 'Unknown'}\n`;
         reportContent += `Category: ${attempt.quizzes?.category || 'General'}\n`;
@@ -150,7 +165,34 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
           ? JSON.parse(attempt.answers) 
           : attempt.answers;
 
-        if (Array.isArray(answers)) {
+        if (Array.isArray(answers) && attempt.questions.length > 0) {
+          reportContent += `\nQuestion Breakdown:\n`;
+          
+          attempt.questions.forEach((question, index) => {
+            const userAnswer = answers.find((a: any) => a.question_id === question.id) || answers[index];
+            const status = userAnswer?.is_correct ? '✓ CORRECT' : '✗ INCORRECT';
+            
+            reportContent += `  ${index + 1}. ${status}\n`;
+            reportContent += `     Q: ${question.question}\n`;
+            
+            if (userAnswer?.selected_answer !== undefined && question.options) {
+              reportContent += `     User Answer: ${question.options[userAnswer.selected_answer] || 'Not answered'}\n`;
+            } else {
+              reportContent += `     User Answer: Not answered\n`;
+            }
+            
+            if (question.options && question.correct_answer !== undefined) {
+              reportContent += `     Correct Answer: ${question.options[question.correct_answer]}\n`;
+            }
+            
+            if (question.category) {
+              reportContent += `     Category: ${question.category}\n`;
+            }
+            
+            reportContent += `\n`;
+          });
+        } else if (Array.isArray(answers)) {
+          // Fallback for older format
           reportContent += `\nQuestion Breakdown:\n`;
           answers.forEach((answer, index) => {
             const status = answer.is_correct ? '✓ CORRECT' : '✗ INCORRECT';
@@ -158,7 +200,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             if (answer.question) {
               reportContent += `     Q: ${answer.question}\n`;
               if (answer.options && answer.options[answer.selected_answer]) {
-                reportContent += `     Your Answer: ${answer.options[answer.selected_answer]}\n`;
+                reportContent += `     User Answer: ${answer.options[answer.selected_answer]}\n`;
               }
               if (answer.options && answer.correct_answer !== undefined) {
                 reportContent += `     Correct Answer: ${answer.options[answer.correct_answer]}\n`;
