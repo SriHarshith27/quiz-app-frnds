@@ -7,7 +7,7 @@ import { useAuth } from '../contexts/AuthContext';
 
 interface AdminDashboardProps {
   onCreateQuiz: () => void;
-  onUploadPDF: () => void;
+  onUploadCSV: () => void;
   onViewResults: (attempt: QuizAttempt) => void;
 }
 
@@ -20,7 +20,7 @@ interface AdminStats {
 
 export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   onCreateQuiz,
-  onUploadPDF,
+  onUploadCSV,
   onViewResults,
 }) => {
   const { user } = useAuth();
@@ -298,14 +298,14 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         </motion.button>
 
         <motion.button
-          onClick={onUploadPDF}
+          onClick={onUploadCSV}
           whileHover={{ scale: 1.02 }}
           whileTap={{ scale: 0.98 }}
           className="bg-gradient-to-r from-purple-500 to-indigo-600 p-6 rounded-xl text-white hover:from-purple-600 hover:to-indigo-700 transition-all"
         >
           <FileText className="w-8 h-8 mb-3" />
-          <h3 className="text-lg font-semibold mb-2">Upload PDF Questions</h3>
-          <p className="text-purple-100 text-sm">Extract questions from documents</p>
+          <h3 className="text-lg font-semibold mb-2">Upload CSV Questions</h3>
+          <p className="text-purple-100 text-sm">Import questions from CSV file</p>
         </motion.button>
       </div>
 

@@ -228,6 +228,12 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({
                   <div className="flex items-center text-xs text-gray-500 space-x-4">
                     <span className="bg-gray-700 px-2 py-1 rounded">{quiz.category}</span>
                     <span>{quiz.questionCount} questions</span>
+                    {quiz.time_limit && (
+                      <span className="flex items-center">
+                        <Clock className="w-3 h-3 mr-1" />
+                        {quiz.time_limit}min
+                      </span>
+                    )}
                   </div>
                 </div>
                 

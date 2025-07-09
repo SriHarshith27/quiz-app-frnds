@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Plus, Trash2, Save, ArrowLeft } from 'lucide-react';
+import { Plus, Trash2, Save, ArrowLeft, Clock } from 'lucide-react';
 import { Question } from '../types';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
@@ -15,6 +15,7 @@ export const QuizCreator: React.FC<QuizCreatorProps> = ({ onBack, onSave }) => {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [category, setCategory] = useState('General');
+  const [timeLimit, setTimeLimit] = useState<number>(30); // Default 30 minutes
   const [questions, setQuestions] = useState<Omit<Question, 'id' | 'quiz_id'>[]>([
     {
       question: '',
@@ -60,6 +61,14 @@ export const QuizCreator: React.FC<QuizCreatorProps> = ({ onBack, onSave }) => {
 
     setSaving(true);
     try {
+      // Set admin context
+      if (user) {
+        await supabase.rpc('set_config', {
+          setting_name: 'app.current_user',
+          setting_value: user.username
+        });
+      }
+
       // Create quiz
       const { data: quiz, error: quizError } = await supabase
         .from('quizzes')
@@ -67,6 +76,7 @@ export const QuizCreator: React.FC<QuizCreatorProps> = ({ onBack, onSave }) => {
           title: title.trim(),
           description: description.trim(),
           category,
+          time_limit: timeLimit,
           created_by: user?.id
         }])
         .select()
@@ -119,7 +129,7 @@ export const QuizCreator: React.FC<QuizCreatorProps> = ({ onBack, onSave }) => {
       <div className="bg-gray-800 rounded-xl p-6 border border-gray-700">
         <h3 className="text-xl font-semibold text-white mb-6">Quiz Details</h3>
         
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
           <div>
             <label className="block text-sm font-medium text-gray-300 mb-2">Title</label>
             <input
@@ -145,6 +155,22 @@ export const QuizCreator: React.FC<QuizCreatorProps> = ({ onBack, onSave }) => {
               <option value="Technology">Technology</option>
               <option value="Entertainment">Entertainment</option>
             </select>
+          </div>
+          
+          <div>
+            <label className="block text-sm font-medium text-gray-300 mb-2 flex items-center">
+              <Clock className="w-4 h-4 mr-1" />
+              Time Limit (minutes)
+            </label>
+            <input
+              type="number"
+              value={timeLimit}
+              onChange={(e) => setTimeLimit(parseInt(e.target.value) || 30)}
+              min="5"
+              max="180"
+              className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+              placeholder="30"
+            />
           </div>
         </div>
         

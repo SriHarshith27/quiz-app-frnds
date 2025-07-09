@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Upload, FileText, ArrowLeft, Save, Edit3 } from 'lucide-react';
+import { Upload, FileText, ArrowLeft, Save, Edit3, Clock } from 'lucide-react';
 import { useDropzone } from 'react-dropzone';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 
-interface PDFUploaderProps {
+interface CSVUploaderProps {
   onBack: () => void;
   onSave: () => void;
 }
@@ -17,22 +17,22 @@ interface ExtractedQuestion {
   category: string;
 }
 
-export const PDFUploader: React.FC<PDFUploaderProps> = ({ onBack, onSave }) => {
+export const CSVUploader: React.FC<CSVUploaderProps> = ({ onBack, onSave }) => {
   const { user } = useAuth();
   const [file, setFile] = useState<File | null>(null);
-  const [extractedText, setExtractedText] = useState('');
   const [questions, setQuestions] = useState<ExtractedQuestion[]>([]);
   const [quizTitle, setQuizTitle] = useState('');
   const [quizDescription, setQuizDescription] = useState('');
   const [category, setCategory] = useState('General');
+  const [timeLimit, setTimeLimit] = useState<number>(30); // Default 30 minutes
   const [processing, setProcessing] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [step, setStep] = useState<'upload' | 'extract' | 'edit'>('upload');
+  const [step, setStep] = useState<'upload' | 'edit'>('upload');
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     accept: {
-      'application/pdf': ['.pdf'],
-      'text/plain': ['.txt']
+      'text/csv': ['.csv'],
+      'application/vnd.ms-excel': ['.csv']
     },
     maxFiles: 1,
     onDrop: (acceptedFiles) => {
@@ -42,105 +42,54 @@ export const PDFUploader: React.FC<PDFUploaderProps> = ({ onBack, onSave }) => {
     }
   });
 
-  const extractTextFromFile = async () => {
+  const parseCSVFile = async () => {
     if (!file) return;
 
     setProcessing(true);
     try {
-      if (file.type === 'text/plain') {
-        const text = await file.text();
-        setExtractedText(text);
-        parseQuestionsFromText(text);
-      } else {
-        // For PDF files, we'll simulate extraction since we can't use PDF.js in this environment
-        // In a real implementation, you'd use a PDF parsing library
-        const simulatedText = `
-Sample Quiz Questions
+      const text = await file.text();
+      const lines = text.split('\n').filter(line => line.trim());
+      const parsedQuestions: ExtractedQuestion[] = [];
 
-1. What is the capital of France?
-A) London
-B) Berlin
-C) Paris
-D) Madrid
-Answer: C
+      // Skip header row if it exists
+      const startIndex = lines[0].toLowerCase().includes('question') ? 1 : 0;
 
-2. Which planet is known as the Red Planet?
-A) Venus
-B) Mars
-C) Jupiter
-D) Saturn
-Answer: B
+      for (let i = startIndex; i < lines.length; i++) {
+        const line = lines[i].trim();
+        if (!line) continue;
 
-3. What is 2 + 2?
-A) 3
-B) 4
-C) 5
-D) 6
-Answer: B
-        `;
-        setExtractedText(simulatedText);
-        parseQuestionsFromText(simulatedText);
+        // Expected CSV format: Question,Option1,Option2,Option3,Option4,CorrectAnswer,Category
+        const columns = line.split(',').map(col => col.trim().replace(/^"|"$/g, ''));
+        
+        if (columns.length >= 6) {
+          const question = columns[0];
+          const options = [columns[1], columns[2], columns[3], columns[4]];
+          const correctAnswerText = columns[5].toLowerCase();
+          const questionCategory = columns[6] || category;
+
+          // Find correct answer index
+          let correctAnswer = 0;
+          if (correctAnswerText === 'b' || correctAnswerText === '2') correctAnswer = 1;
+          else if (correctAnswerText === 'c' || correctAnswerText === '3') correctAnswer = 2;
+          else if (correctAnswerText === 'd' || correctAnswerText === '4') correctAnswer = 3;
+
+          parsedQuestions.push({
+            question,
+            options,
+            correct_answer: correctAnswer,
+            category: questionCategory
+          });
+        }
       }
-      setStep('extract');
+
+      setQuestions(parsedQuestions);
+      setStep('edit');
     } catch (error) {
-      console.error('Error extracting text:', error);
-      alert('Failed to extract text from file');
+      console.error('Error parsing CSV:', error);
+      alert('Failed to parse CSV file. Please check the format.');
     } finally {
       setProcessing(false);
     }
-  };
-
-  const parseQuestionsFromText = (text: string) => {
-    // Simple parser for question format
-    const lines = text.split('\n').filter(line => line.trim());
-    const parsedQuestions: ExtractedQuestion[] = [];
-    
-    let currentQuestion = '';
-    let currentOptions: string[] = [];
-    let correctAnswer = 0;
-    
-    for (let i = 0; i < lines.length; i++) {
-      const line = lines[i].trim();
-      
-      // Check if line is a question (starts with number)
-      if (/^\d+\./.test(line)) {
-        // Save previous question if exists
-        if (currentQuestion && currentOptions.length > 0) {
-          parsedQuestions.push({
-            question: currentQuestion,
-            options: currentOptions,
-            correct_answer: correctAnswer,
-            category
-          });
-        }
-        
-        // Start new question
-        currentQuestion = line.replace(/^\d+\.\s*/, '');
-        currentOptions = [];
-        correctAnswer = 0;
-      }
-      // Check if line is an option (starts with A), B), etc.)
-      else if (/^[A-D]\)/.test(line)) {
-        currentOptions.push(line.replace(/^[A-D]\)\s*/, ''));
-      }
-      // Check if line indicates correct answer
-      else if (line.toLowerCase().startsWith('answer:')) {
-        const answerLetter = line.replace(/answer:\s*/i, '').trim().toUpperCase();
-        correctAnswer = answerLetter.charCodeAt(0) - 65; // Convert A,B,C,D to 0,1,2,3
-      }
-    }
-    
-    // Add last question
-    if (currentQuestion && currentOptions.length > 0) {
-      parsedQuestions.push({
-        question: currentQuestion,
-        options: currentOptions,
-        correct_answer: correctAnswer,
-        category
-      });
-    }
-    
-    setQuestions(parsedQuestions);
   };
 
   const updateQuestion = (index: number, field: string, value: any) => {
@@ -167,6 +116,14 @@ Answer: B
 
     setSaving(true);
     try {
+      // Set admin context
+      if (user) {
+        await supabase.rpc('set_config', {
+          setting_name: 'app.current_user',
+          setting_value: user.username
+        });
+      }
+
       // Create quiz
       const { data: quiz, error: quizError } = await supabase
         .from('quizzes')
@@ -174,6 +131,7 @@ Answer: B
           title: quizTitle.trim(),
           description: quizDescription.trim(),
           category,
+          time_limit: timeLimit,
           created_by: user?.id
         }])
         .select()
@@ -216,7 +174,17 @@ Answer: B
         </div>
 
         <div className="bg-gray-800 rounded-xl p-8 border border-gray-700">
-          <h3 className="text-2xl font-semibold text-white mb-6 text-center">Upload PDF or Text File</h3>
+          <h3 className="text-2xl font-semibold text-white mb-6 text-center">Upload CSV File</h3>
+          
+          <div className="mb-6 p-4 bg-blue-900/20 rounded-lg border border-blue-700">
+            <h4 className="text-blue-300 font-medium mb-2">CSV Format Required:</h4>
+            <p className="text-blue-200 text-sm mb-2">
+              Question,Option1,Option2,Option3,Option4,CorrectAnswer,Category
+            </p>
+            <p className="text-blue-200 text-xs">
+              CorrectAnswer should be: A/1, B/2, C/3, or D/4
+            </p>
+          </div>
           
           <div
             {...getRootProps()}
@@ -230,14 +198,14 @@ Answer: B
             <Upload className="w-16 h-16 text-gray-400 mx-auto mb-4" />
             
             {isDragActive ? (
-              <p className="text-blue-400 text-lg">Drop the file here...</p>
+              <p className="text-blue-400 text-lg">Drop the CSV file here...</p>
             ) : (
               <div>
                 <p className="text-gray-300 text-lg mb-2">
-                  Drag & drop a PDF or text file here, or click to select
+                  Drag & drop a CSV file here, or click to select
                 </p>
                 <p className="text-gray-500 text-sm">
-                  Supported formats: PDF, TXT
+                  Supported format: CSV
                 </p>
               </div>
             )}
@@ -258,7 +226,7 @@ Answer: B
               </div>
               
               <button
-                onClick={extractTextFromFile}
+                onClick={parseCSVFile}
                 disabled={processing}
                 className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 text-white py-2 px-4 rounded-lg transition-colors flex items-center justify-center space-x-2"
               >
@@ -267,7 +235,7 @@ Answer: B
                 ) : (
                   <>
                     <Edit3 className="w-5 h-5" />
-                    <span>Extract Questions</span>
+                    <span>Parse Questions</span>
                   </>
                 )}
               </button>
@@ -278,52 +246,15 @@ Answer: B
     );
   }
 
-  if (step === 'extract') {
-    return (
-      <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <button
-            onClick={() => setStep('upload')}
-            className="flex items-center space-x-2 text-gray-400 hover:text-white transition-colors"
-          >
-            <ArrowLeft className="w-5 h-5" />
-            <span>Back to Upload</span>
-          </button>
-          
-          <button
-            onClick={() => setStep('edit')}
-            className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg transition-colors"
-          >
-            Edit Questions
-          </button>
-        </div>
-
-        <div className="bg-gray-800 rounded-xl p-6 border border-gray-700">
-          <h3 className="text-xl font-semibold text-white mb-6">Extracted Text</h3>
-          
-          <div className="bg-gray-900 rounded-lg p-4 max-h-96 overflow-y-auto">
-            <pre className="text-gray-300 text-sm whitespace-pre-wrap">{extractedText}</pre>
-          </div>
-          
-          <div className="mt-6">
-            <p className="text-gray-400 mb-2">
-              Found {questions.length} questions. Click "Edit Questions" to review and modify them.
-            </p>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <button
-          onClick={() => setStep('extract')}
+          onClick={() => setStep('upload')}
           className="flex items-center space-x-2 text-gray-400 hover:text-white transition-colors"
         >
           <ArrowLeft className="w-5 h-5" />
-          <span>Back to Extract</span>
+          <span>Back to Upload</span>
         </button>
         
         <button
@@ -339,7 +270,7 @@ Answer: B
       <div className="bg-gray-800 rounded-xl p-6 border border-gray-700">
         <h3 className="text-xl font-semibold text-white mb-6">Quiz Details</h3>
         
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
           <div>
             <label className="block text-sm font-medium text-gray-300 mb-2">Title</label>
             <input
@@ -366,6 +297,22 @@ Answer: B
               <option value="Entertainment">Entertainment</option>
             </select>
           </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-300 mb-2 flex items-center">
+              <Clock className="w-4 h-4 mr-1" />
+              Time Limit (minutes)
+            </label>
+            <input
+              type="number"
+              value={timeLimit}
+              onChange={(e) => setTimeLimit(parseInt(e.target.value) || 30)}
+              min="5"
+              max="180"
+              className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+              placeholder="30"
+            />
+          </div>
         </div>
         
         <div>
@@ -381,7 +328,11 @@ Answer: B
       </div>
 
       <div className="space-y-6">
-        <h3 className="text-xl font-semibold text-white">Review & Edit Questions</h3>
+        <div className="flex items-center justify-between">
+          <h3 className="text-xl font-semibold text-white">
+            Review & Edit Questions ({questions.length} found)
+          </h3>
+        </div>
         
         {questions.map((question, index) => (
           <motion.div

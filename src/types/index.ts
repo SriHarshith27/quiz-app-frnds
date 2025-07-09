@@ -14,6 +14,7 @@ export interface Quiz {
   created_at: string;
   questions?: Question[];
   category: string;
+  time_limit?: number; // in minutes
 }
 
 export interface Question {

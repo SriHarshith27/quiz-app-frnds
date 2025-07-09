@@ -7,10 +7,10 @@ import { AdminDashboard } from './components/AdminDashboard';
 import { QuizCreator } from './components/QuizCreator';
 import { QuizTaker } from './components/QuizTaker';
 import { QuizResults } from './components/QuizResults';
-import { PDFUploader } from './components/PDFUploader';
+import { CSVUploader } from './components/CSVUploader';
 import { Quiz, QuizAttempt } from './types';
 
-type AppState = 'dashboard' | 'create-quiz' | 'take-quiz' | 'upload-pdf' | 'view-results';
+type AppState = 'dashboard' | 'create-quiz' | 'take-quiz' | 'upload-csv' | 'view-results';
 
 function AppContent() {
   const { user, loading, isAdmin } = useAuth();
@@ -35,7 +35,7 @@ function AppContent() {
     setSelectedQuiz(quiz);
     setCurrentState('take-quiz');
   };
-  const handleUploadPDF = () => setCurrentState('upload-pdf');
+  const handleUploadCSV = () => setCurrentState('upload-csv');
   const handleViewResults = (attempt: QuizAttempt) => {
     setSelectedAttemptId(attempt.id);
     setCurrentState('view-results');
@@ -54,7 +54,7 @@ function AppContent() {
     switch (currentState) {
       case 'create-quiz': return 'Create New Quiz';
       case 'take-quiz': return selectedQuiz?.title || 'Take Quiz';
-      case 'upload-pdf': return 'Upload PDF Questions';
+      case 'upload-csv': return 'Upload CSV Questions';
       case 'view-results': return 'Quiz Results';
       default: return isAdmin ? 'Admin Dashboard' : 'Dashboard';
     }
@@ -67,7 +67,7 @@ function AppContent() {
           {isAdmin ? (
             <AdminDashboard
               onCreateQuiz={handleCreateQuiz}
-              onUploadPDF={handleUploadPDF}
+              onUploadCSV={handleUploadCSV}
               onViewResults={handleViewResults}
             />
           ) : (
@@ -94,8 +94,8 @@ function AppContent() {
         />
       )}
       
-      {currentState === 'upload-pdf' && isAdmin && (
-        <PDFUploader
+      {currentState === 'upload-csv' && isAdmin && (
+        <CSVUploader
           onBack={handleBackToDashboard}
           onSave={handleBackToDashboard}
         />
