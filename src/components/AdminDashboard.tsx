@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Plus, Users, Trophy, Download, BarChart3, FileText } from 'lucide-react';
+import { Plus, Users, Trophy, Download, BarChart3, FileText, Eye, EyeOff, Key } from 'lucide-react';
 import { Quiz, QuizAttempt, User } from '../types';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
@@ -33,6 +33,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const [recentAttempts, setRecentAttempts] = useState<(QuizAttempt & { user: User; quiz: Quiz })[]>([]);
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showCredentials, setShowCredentials] = useState(false);
+  const [visiblePasswords, setVisiblePasswords] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     loadAdminData();
@@ -212,6 +214,25 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     }
   };
 
+  const togglePasswordVisibility = (userId: string) => {
+    const newVisible = new Set(visiblePasswords);
+    if (newVisible.has(userId)) {
+      newVisible.delete(userId);
+    } else {
+      newVisible.add(userId);
+    }
+    setVisiblePasswords(newVisible);
+  };
+
+  const decodePassword = (passwordHash: string): string => {
+    try {
+      // Since we're using base64 encoding (replace with proper decryption in production)
+      return atob(passwordHash);
+    } catch {
+      return 'Unable to decode';
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
@@ -311,10 +332,35 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
       {/* User Management */}
       <div>
-        <h3 className="text-xl font-semibold text-white mb-6 flex items-center">
-          <Users className="w-6 h-6 mr-2 text-green-400" />
-          User Management
-        </h3>
+        <div className="flex items-center justify-between mb-6">
+          <h3 className="text-xl font-semibold text-white flex items-center">
+            <Users className="w-6 h-6 mr-2 text-green-400" />
+            User Management
+          </h3>
+          <button
+            onClick={() => setShowCredentials(!showCredentials)}
+            className={`px-4 py-2 rounded-lg flex items-center space-x-2 transition-colors ${
+              showCredentials 
+                ? 'bg-red-600 hover:bg-red-700 text-white' 
+                : 'bg-blue-600 hover:bg-blue-700 text-white'
+            }`}
+          >
+            <Key className="w-4 h-4" />
+            <span>{showCredentials ? 'Hide Credentials' : 'Show Credentials'}</span>
+          </button>
+        </div>
+        
+        {showCredentials && (
+          <div className="mb-4 p-4 bg-yellow-900/20 rounded-lg border border-yellow-700">
+            <div className="flex items-center space-x-2 mb-2">
+              <Key className="w-5 h-5 text-yellow-400" />
+              <h4 className="text-yellow-300 font-medium">Security Notice</h4>
+            </div>
+            <p className="text-yellow-200 text-sm">
+              User credentials are now visible. Use this information responsibly to help users who have forgotten their login details.
+            </p>
+          </div>
+        )}
         
         <div className="bg-gray-800 rounded-xl border border-gray-700 overflow-hidden">
           <div className="overflow-x-auto">
@@ -327,6 +373,11 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
                     Email
                   </th>
+                  {showCredentials && (
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
+                      Password
+                    </th>
+                  )}
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
                     Joined
                   </th>
@@ -339,11 +390,40 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                 {users.map((user) => (
                   <tr key={user.id} className="hover:bg-gray-700/50">
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm font-medium text-white">{user.username}</div>
+                      <div className="flex items-center">
+                        <div className="text-sm font-medium text-white">{user.username}</div>
+                        {user.role === 'admin' && (
+                          <span className="ml-2 px-2 py-1 text-xs bg-purple-600 text-white rounded-full">
+                            Admin
+                          </span>
+                        )}
+                      </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="text-sm text-gray-300">{user.email}</div>
                     </td>
+                    {showCredentials && (
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="flex items-center space-x-2">
+                          <div className="text-sm text-gray-300 font-mono">
+                            {visiblePasswords.has(user.id) 
+                              ? decodePassword(user.password_hash || '') 
+                              : '••••••••'
+                            }
+                          </div>
+                          <button
+                            onClick={() => togglePasswordVisibility(user.id)}
+                            className="text-gray-400 hover:text-white transition-colors"
+                          >
+                            {visiblePasswords.has(user.id) ? (
+                              <EyeOff className="w-4 h-4" />
+                            ) : (
+                              <Eye className="w-4 h-4" />
+                            )}
+                          </button>
+                        </div>
+                      </td>
+                    )}
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="text-sm text-gray-300">
                         {new Date(user.created_at).toLocaleDateString()}
@@ -366,9 +446,61 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         </div>
       </div>
 
-      {/* Recent Activity */}
+      {/* Credentials Helper Section */}
+      {showCredentials && (
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="bg-gray-800 rounded-xl p-6 border border-gray-700"
+        >
+          <h3 className="text-lg font-semibold text-white mb-4 flex items-center">
+            <Key className="w-5 h-5 mr-2 text-blue-400" />
+            How to Help Users with Forgotten Credentials
+          </h3>
+          
+          <div className="space-y-3 text-gray-300">
+            <div className="flex items-start space-x-3">
+              <div className="w-6 h-6 bg-blue-600 rounded-full flex items-center justify-center text-white text-sm font-bold mt-0.5">
+                1
+              </div>
+              <div>
+                <p className="font-medium">Find the user in the table above</p>
+                <p className="text-sm text-gray-400">Look for their username or email address</p>
+              </div>
+            </div>
+            
+            <div className="flex items-start space-x-3">
+              <div className="w-6 h-6 bg-blue-600 rounded-full flex items-center justify-center text-white text-sm font-bold mt-0.5">
+                2
+              </div>
+              <div>
+                <p className="font-medium">Click the eye icon to reveal their password</p>
+                <p className="text-sm text-gray-400">The password will be shown in plain text</p>
+              </div>
+            </div>
+            
+            <div className="flex items-start space-x-3">
+              <div className="w-6 h-6 bg-blue-600 rounded-full flex items-center justify-center text-white text-sm font-bold mt-0.5">
+                3
+              </div>
+              <div>
+                <p className="font-medium">Share the credentials securely</p>
+                <p className="text-sm text-gray-400">Send them their username and password through a secure channel</p>
+              </div>
+            </div>
+          </div>
+          
+          <div className="mt-4 p-3 bg-red-900/20 rounded-lg border border-red-700">
+            <p className="text-red-300 text-sm">
+              <strong>Security Reminder:</strong> Only share credentials through secure, private channels. 
+              Consider asking users to change their password after recovery.
+            </p>
+          </div>
+        </motion.div>
+      )}
+
+      {/* User Management */}
       <div>
-        <h3 className="text-xl font-semibold text-white mb-6 flex items-center">
           <BarChart3 className="w-6 h-6 mr-2 text-purple-400" />
           Recent Quiz Attempts
         </h3>
