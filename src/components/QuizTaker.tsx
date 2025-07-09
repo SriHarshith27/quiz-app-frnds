@@ -13,30 +13,40 @@ interface QuizTakerProps {
 
 export const QuizTaker: React.FC<QuizTakerProps> = ({ quiz, onBack, onComplete }) => {
   const { user } = useAuth();
+  const [questions, setQuestions] = useState<any[]>([]);
   const [currentQuestion, setCurrentQuestion] = useState(0);
   const [answers, setAnswers] = useState<UserAnswer[]>([]);
   const [selectedAnswer, setSelectedAnswer] = useState<number | null>(null);
   const [timeStarted] = useState(Date.now());
   const [showReview, setShowReview] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Load questions for this quiz
     loadQuestions();
   }, [quiz.id]);
 
   const loadQuestions = async () => {
     try {
-      const { data: questions } = await supabase
+      const { data: questionsData, error } = await supabase
         .from('questions')
         .select('*')
         .eq('quiz_id', quiz.id)
         .order('created_at');
 
-      if (questions) {
-        quiz.questions = questions;
+      if (error) throw error;
+
+      if (questionsData && questionsData.length > 0) {
+        setQuestions(questionsData);
+      } else {
+        alert('No questions found for this quiz');
+        onBack();
       }
     } catch (error) {
       console.error('Error loading questions:', error);
+      alert('Failed to load questions');
+      onBack();
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -47,21 +57,24 @@ export const QuizTaker: React.FC<QuizTakerProps> = ({ quiz, onBack, onComplete }
   const handleNext = () => {
     if (selectedAnswer === null) return;
 
-    const question = quiz.questions[currentQuestion];
+    const question = questions[currentQuestion];
     const isCorrect = selectedAnswer === question.correct_answer;
 
     const newAnswer: UserAnswer = {
       question_id: question.id,
       selected_answer: selectedAnswer,
       is_correct: isCorrect,
-      category: question.category
+      category: question.category,
+      question: question.question,
+      options: question.options,
+      correct_answer: question.correct_answer
     };
 
     const updatedAnswers = [...answers];
     updatedAnswers[currentQuestion] = newAnswer;
     setAnswers(updatedAnswers);
 
-    if (currentQuestion < quiz.questions.length - 1) {
+    if (currentQuestion < questions.length - 1) {
       setCurrentQuestion(currentQuestion + 1);
       setSelectedAnswer(null);
     } else {
@@ -81,7 +94,7 @@ export const QuizTaker: React.FC<QuizTakerProps> = ({ quiz, onBack, onComplete }
           user_id: user?.id,
           quiz_id: quiz.id,
           score,
-          total_questions: quiz.questions.length,
+          total_questions: questions.length,
           answers: JSON.stringify(answers),
           time_taken: timeTaken
         }])
@@ -102,11 +115,25 @@ export const QuizTaker: React.FC<QuizTakerProps> = ({ quiz, onBack, onComplete }
     setShowReview(false);
   };
 
-  if (!quiz.questions || quiz.questions.length === 0) {
+  if (loading) {
     return (
       <div className="text-center py-12">
         <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
         <p className="text-gray-400">Loading questions...</p>
+      </div>
+    );
+  }
+
+  if (questions.length === 0) {
+    return (
+      <div className="text-center py-12">
+        <p className="text-gray-400">No questions available for this quiz</p>
+        <button
+          onClick={onBack}
+          className="mt-4 bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg transition-colors"
+        >
+          Back to Dashboard
+        </button>
       </div>
     );
   }
@@ -136,7 +163,7 @@ export const QuizTaker: React.FC<QuizTakerProps> = ({ quiz, onBack, onComplete }
           <h3 className="text-xl font-semibold text-white mb-6">Review Your Answers</h3>
           
           <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3 mb-6">
-            {quiz.questions.map((_, index) => {
+            {questions.map((_, index) => {
               const answer = answers[index];
               return (
                 <button
@@ -158,10 +185,10 @@ export const QuizTaker: React.FC<QuizTakerProps> = ({ quiz, onBack, onComplete }
 
           <div className="text-center">
             <p className="text-gray-300 mb-2">
-              Score: {answers.filter(a => a.is_correct).length} / {quiz.questions.length}
+              Score: {answers.filter(a => a.is_correct).length} / {questions.length}
             </p>
             <p className="text-gray-400 text-sm">
-              {Math.round((answers.filter(a => a.is_correct).length / quiz.questions.length) * 100)}% correct
+              {Math.round((answers.filter(a => a.is_correct).length / questions.length) * 100)}% correct
             </p>
           </div>
         </div>
@@ -169,8 +196,8 @@ export const QuizTaker: React.FC<QuizTakerProps> = ({ quiz, onBack, onComplete }
     );
   }
 
-  const question = quiz.questions[currentQuestion];
-  const progress = ((currentQuestion + 1) / quiz.questions.length) * 100;
+  const question = questions[currentQuestion];
+  const progress = ((currentQuestion + 1) / questions.length) * 100;
 
   return (
     <div className="space-y-6">
@@ -194,7 +221,7 @@ export const QuizTaker: React.FC<QuizTakerProps> = ({ quiz, onBack, onComplete }
           <div className="flex items-center justify-between mb-2">
             <h3 className="text-lg font-semibold text-white">{quiz.title}</h3>
             <span className="text-gray-400 text-sm">
-              Question {currentQuestion + 1} of {quiz.questions.length}
+              Question {currentQuestion + 1} of {questions.length}
             </span>
           </div>
           
@@ -212,7 +239,7 @@ export const QuizTaker: React.FC<QuizTakerProps> = ({ quiz, onBack, onComplete }
           <h4 className="text-xl text-white mb-6">{question.question}</h4>
           
           <div className="space-y-3">
-            {question.options.map((option, index) => (
+            {question.options.map((option: string, index: number) => (
               <motion.button
                 key={index}
                 onClick={() => handleAnswerSelect(index)}
@@ -254,7 +281,7 @@ export const QuizTaker: React.FC<QuizTakerProps> = ({ quiz, onBack, onComplete }
             disabled={selectedAnswer === null}
             className="bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 disabled:cursor-not-allowed text-white px-6 py-2 rounded-lg transition-colors"
           >
-            {currentQuestion === quiz.questions.length - 1 ? 'Finish' : 'Next'}
+            {currentQuestion === questions.length - 1 ? 'Finish' : 'Next'}
           </button>
         </div>
       </div>

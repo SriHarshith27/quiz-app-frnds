@@ -2,7 +2,8 @@ import React, { useState } from 'react';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { Layout } from './components/Layout';
 import { LoginForm } from './components/LoginForm';
-import { Dashboard } from './components/Dashboard';
+import { UserDashboard } from './components/UserDashboard';
+import { AdminDashboard } from './components/AdminDashboard';
 import { QuizCreator } from './components/QuizCreator';
 import { QuizTaker } from './components/QuizTaker';
 import { QuizResults } from './components/QuizResults';
@@ -12,7 +13,7 @@ import { Quiz, QuizAttempt } from './types';
 type AppState = 'dashboard' | 'create-quiz' | 'take-quiz' | 'upload-pdf' | 'view-results';
 
 function AppContent() {
-  const { user, loading } = useAuth();
+  const { user, loading, isAdmin } = useAuth();
   const [currentState, setCurrentState] = useState<AppState>('dashboard');
   const [selectedQuiz, setSelectedQuiz] = useState<Quiz | null>(null);
   const [selectedAttemptId, setSelectedAttemptId] = useState<string | null>(null);
@@ -55,22 +56,30 @@ function AppContent() {
       case 'take-quiz': return selectedQuiz?.title || 'Take Quiz';
       case 'upload-pdf': return 'Upload PDF Questions';
       case 'view-results': return 'Quiz Results';
-      default: return 'Dashboard';
+      default: return isAdmin ? 'Admin Dashboard' : 'Dashboard';
     }
   };
 
   return (
     <Layout title={getTitle()}>
       {currentState === 'dashboard' && (
-        <Dashboard
-          onCreateQuiz={handleCreateQuiz}
-          onTakeQuiz={handleTakeQuiz}
-          onUploadPDF={handleUploadPDF}
-          onViewResults={handleViewResults}
-        />
+        <>
+          {isAdmin ? (
+            <AdminDashboard
+              onCreateQuiz={handleCreateQuiz}
+              onUploadPDF={handleUploadPDF}
+              onViewResults={handleViewResults}
+            />
+          ) : (
+            <UserDashboard
+              onTakeQuiz={handleTakeQuiz}
+              onViewResults={handleViewResults}
+            />
+          )}
+        </>
       )}
       
-      {currentState === 'create-quiz' && (
+      {currentState === 'create-quiz' && isAdmin && (
         <QuizCreator
           onBack={handleBackToDashboard}
           onSave={handleBackToDashboard}
@@ -85,7 +94,7 @@ function AppContent() {
         />
       )}
       
-      {currentState === 'upload-pdf' && (
+      {currentState === 'upload-pdf' && isAdmin && (
         <PDFUploader
           onBack={handleBackToDashboard}
           onSave={handleBackToDashboard}

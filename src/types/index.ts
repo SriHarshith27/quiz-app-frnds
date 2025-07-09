@@ -1,6 +1,8 @@
 export interface User {
   id: string;
   username: string;
+  email: string;
+  role: 'admin' | 'user';
   created_at: string;
 }
 
@@ -10,7 +12,7 @@ export interface Quiz {
   description: string;
   created_by: string;
   created_at: string;
-  questions: Question[];
+  questions?: Question[];
   category: string;
 }
 
@@ -29,7 +31,7 @@ export interface QuizAttempt {
   quiz_id: string;
   score: number;
   total_questions: number;
-  answers: UserAnswer[];
+  answers: UserAnswer[] | string;
   completed_at: string;
   time_taken: number;
 }
@@ -39,6 +41,9 @@ export interface UserAnswer {
   selected_answer: number;
   is_correct: boolean;
   category: string;
+  question?: string;
+  options?: string[];
+  correct_answer?: number;
 }
 
 export interface CategoryPerformance {
@@ -46,4 +51,12 @@ export interface CategoryPerformance {
   correct: number;
   total: number;
   percentage: number;
+}
+
+export interface UserProgress {
+  totalQuizzes: number;
+  averageScore: number;
+  strongCategories: string[];
+  weakCategories: string[];
+  recentAttempts: QuizAttempt[];
 }
