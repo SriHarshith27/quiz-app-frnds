@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { ArrowLeft, Trophy, Target, TrendingUp, Download } from 'lucide-react';
+import { ArrowLeft, Trophy, Target, TrendingUp, Download, Eye, EyeOff, CheckCircle, XCircle } from 'lucide-react';
 import { QuizAttempt, Quiz, CategoryPerformance } from '../types';
 import { supabase } from '../lib/supabase';
 
@@ -9,10 +9,21 @@ interface QuizResultsProps {
   onBack: () => void;
 }
 
+interface DetailedAnswer {
+  question: string;
+  options: string[];
+  userAnswer: number | null;
+  correctAnswer: number;
+  isCorrect: boolean;
+  category: string;
+}
+
 export const QuizResults: React.FC<QuizResultsProps> = ({ attemptId, onBack }) => {
   const [attempt, setAttempt] = useState<QuizAttempt | null>(null);
   const [quiz, setQuiz] = useState<Quiz | null>(null);
   const [categoryPerformance, setCategoryPerformance] = useState<CategoryPerformance[]>([]);
+  const [detailedAnswers, setDetailedAnswers] = useState<DetailedAnswer[]>([]);
+  const [showDetailedAnswers, setShowDetailedAnswers] = useState(false);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -41,14 +52,16 @@ export const QuizResults: React.FC<QuizResultsProps> = ({ attemptId, onBack }) =
         if (quizData) {
           setQuiz(quizData);
           
-          // Load questions for category analysis
+          // Load questions for detailed analysis
           const { data: questions } = await supabase
             .from('questions')
             .select('*')
-            .eq('quiz_id', quizData.id);
+            .eq('quiz_id', quizData.id)
+            .order('created_at');
 
           if (questions) {
             calculateCategoryPerformance(attemptData.answers, questions);
+            generateDetailedAnswers(attemptData.answers, questions);
           }
         }
       }
@@ -63,8 +76,8 @@ export const QuizResults: React.FC<QuizResultsProps> = ({ attemptId, onBack }) =
     const userAnswers = typeof answers === 'string' ? JSON.parse(answers) : answers;
     const categoryStats: { [key: string]: { correct: number; total: number } } = {};
 
-    questions.forEach((question) => {
-      const userAnswer = userAnswers.find((a: any) => a.question_id === question.id);
+    questions.forEach((question, index) => {
+      const userAnswer = userAnswers.find((a: any) => a.question_id === question.id) || userAnswers[index];
       const category = question.category || 'General';
 
       if (!categoryStats[category]) {
@@ -87,6 +100,25 @@ export const QuizResults: React.FC<QuizResultsProps> = ({ attemptId, onBack }) =
     setCategoryPerformance(performance);
   };
 
+  const generateDetailedAnswers = (answers: any, questions: any[]) => {
+    const userAnswers = typeof answers === 'string' ? JSON.parse(answers) : answers;
+    
+    const detailed = questions.map((question, index) => {
+      const userAnswer = userAnswers.find((a: any) => a.question_id === question.id) || userAnswers[index];
+      
+      return {
+        question: question.question,
+        options: question.options,
+        userAnswer: userAnswer?.selected_answer ?? null,
+        correctAnswer: question.correct_answer,
+        isCorrect: userAnswer?.is_correct || false,
+        category: question.category || 'General'
+      };
+    });
+
+    setDetailedAnswers(detailed);
+  };
+
   const generateReport = () => {
     if (!attempt || !quiz) return;
 
@@ -94,43 +126,71 @@ export const QuizResults: React.FC<QuizResultsProps> = ({ attemptId, onBack }) =
     const strongAreas = categoryPerformance.filter(c => c.percentage >= 80);
     const weakAreas = categoryPerformance.filter(c => c.percentage < 60);
 
-    const reportContent = `
-Quiz Results Report
-==================
+    let reportContent = `Quiz Results Report\n`;
+    reportContent += `==================\n\n`;
+    reportContent += `Quiz: ${quiz.title}\n`;
+    reportContent += `Date: ${new Date(attempt.completed_at).toLocaleDateString()}\n`;
+    reportContent += `Time Taken: ${Math.floor(attempt.time_taken / 60)}:${String(attempt.time_taken % 60).padStart(2, '0')}\n\n`;
 
-Quiz: ${quiz.title}
-Date: ${new Date(attempt.completed_at).toLocaleDateString()}
-Time Taken: ${Math.floor(attempt.time_taken / 60)}:${String(attempt.time_taken % 60).padStart(2, '0')}
+    reportContent += `Overall Performance\n`;
+    reportContent += `------------------\n`;
+    reportContent += `Score: ${attempt.score}/${attempt.total_questions} (${percentage}%)\n\n`;
 
-Overall Performance
-------------------
-Score: ${attempt.score}/${attempt.total_questions} (${percentage}%)
+    // Detailed question breakdown
+    if (detailedAnswers.length > 0) {
+      reportContent += `Detailed Question Analysis\n`;
+      reportContent += `-------------------------\n`;
+      detailedAnswers.forEach((answer, index) => {
+        reportContent += `\nQuestion ${index + 1}: ${answer.isCorrect ? '✓ CORRECT' : '✗ INCORRECT'}\n`;
+        reportContent += `Q: ${answer.question}\n`;
+        reportContent += `Category: ${answer.category}\n`;
+        
+        if (answer.userAnswer !== null) {
+          reportContent += `Your Answer: ${answer.options[answer.userAnswer]}\n`;
+        } else {
+          reportContent += `Your Answer: Not answered\n`;
+        }
+        
+        reportContent += `Correct Answer: ${answer.options[answer.correctAnswer]}\n`;
+        reportContent += `${'-'.repeat(40)}\n`;
+      });
+    }
 
-Category Performance
--------------------
-${categoryPerformance.map(c => `${c.category}: ${c.correct}/${c.total} (${c.percentage}%)`).join('\n')}
+    reportContent += `\nCategory Performance\n`;
+    reportContent += `-------------------\n`;
+    categoryPerformance.forEach(c => {
+      reportContent += `${c.category}: ${c.correct}/${c.total} (${c.percentage}%)\n`;
+    });
 
-Strong Areas (≥80%)
-------------------
-${strongAreas.length > 0 ? strongAreas.map(c => `• ${c.category} (${c.percentage}%)`).join('\n') : 'None identified'}
+    reportContent += `\nStrong Areas (≥80%)\n`;
+    reportContent += `------------------\n`;
+    if (strongAreas.length > 0) {
+      strongAreas.forEach(c => reportContent += `• ${c.category} (${c.percentage}%)\n`);
+    } else {
+      reportContent += `None identified\n`;
+    }
 
-Areas for Improvement (<60%)
----------------------------
-${weakAreas.length > 0 ? weakAreas.map(c => `• ${c.category} (${c.percentage}%)`).join('\n') : 'None identified'}
+    reportContent += `\nAreas for Improvement (<60%)\n`;
+    reportContent += `---------------------------\n`;
+    if (weakAreas.length > 0) {
+      weakAreas.forEach(c => reportContent += `• ${c.category} (${c.percentage}%)\n`);
+    } else {
+      reportContent += `None identified\n`;
+    }
 
-Recommendations
---------------
-${weakAreas.length > 0 
-  ? `Focus on improving: ${weakAreas.map(c => c.category).join(', ')}`
-  : 'Great job! Keep up the excellent work across all categories.'
-}
-    `;
+    reportContent += `\nRecommendations\n`;
+    reportContent += `--------------\n`;
+    if (weakAreas.length > 0) {
+      reportContent += `Focus on improving: ${weakAreas.map(c => c.category).join(', ')}\n`;
+    } else {
+      reportContent += `Great job! Keep up the excellent work across all categories.\n`;
+    }
 
     const blob = new Blob([reportContent], { type: 'text/plain' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `quiz-results-${quiz.title.replace(/\s+/g, '-').toLowerCase()}.txt`;
+    a.download = `quiz-results-${quiz.title.replace(/\s+/g, '-').toLowerCase()}-${new Date().toISOString().split('T')[0]}.txt`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -168,13 +228,23 @@ ${weakAreas.length > 0
           <span>Back to Dashboard</span>
         </button>
         
-        <button
-          onClick={generateReport}
-          className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg flex items-center space-x-2 transition-colors"
-        >
-          <Download className="w-4 h-4" />
-          <span>Download Report</span>
-        </button>
+        <div className="flex space-x-3">
+          <button
+            onClick={() => setShowDetailedAnswers(!showDetailedAnswers)}
+            className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center space-x-2 transition-colors"
+          >
+            {showDetailedAnswers ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+            <span>{showDetailedAnswers ? 'Hide' : 'Show'} Detailed Answers</span>
+          </button>
+          
+          <button
+            onClick={generateReport}
+            className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg flex items-center space-x-2 transition-colors"
+          >
+            <Download className="w-4 h-4" />
+            <span>Download Report</span>
+          </button>
+        </div>
       </div>
 
       {/* Overall Score */}
@@ -209,53 +279,12 @@ ${weakAreas.length > 0
         </p>
       </motion.div>
 
-      {/* Category Performance */}
-      {categoryPerformance.length > 0 && (
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.1 }}
-          className="bg-gray-800 rounded-xl p-6 border border-gray-700"
-        >
-          <h3 className="text-xl font-semibold text-white mb-6 flex items-center">
-            <Target className="w-6 h-6 mr-2 text-blue-400" />
-            Category Performance
-          </h3>
-          
-          <div className="space-y-4">
-            {categoryPerformance.map((category) => (
-              <div key={category.category} className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="text-gray-300">{category.category}</span>
-                  <span className="text-gray-400">
-                    {category.correct}/{category.total} ({category.percentage}%)
-                  </span>
-                </div>
-                
-                <div className="w-full bg-gray-700 rounded-full h-2">
-                  <motion.div
-                    className={`h-2 rounded-full ${
-                      category.percentage >= 80 ? 'bg-green-500' :
-                      category.percentage >= 60 ? 'bg-yellow-500' :
-                      'bg-red-500'
-                    }`}
-                    initial={{ width: 0 }}
-                    animate={{ width: `${category.percentage}%` }}
-                    transition={{ delay: 0.2, duration: 0.8 }}
-                  />
-                </div>
-              </div>
-            ))}
-          </div>
-        </motion.div>
-      )}
-
       {/* Detailed Answers Review */}
       {showDetailedAnswers && detailedAnswers.length > 0 && (
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.5 }}
+          transition={{ delay: 0.1 }}
           className="bg-gray-800 rounded-xl p-6 border border-gray-700"
         >
           <h3 className="text-xl font-semibold text-white mb-6 flex items-center">
@@ -333,12 +362,53 @@ ${weakAreas.length > 0
         </motion.div>
       )}
 
+      {/* Category Performance */}
+      {categoryPerformance.length > 0 && (
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.2 }}
+          className="bg-gray-800 rounded-xl p-6 border border-gray-700"
+        >
+          <h3 className="text-xl font-semibold text-white mb-6 flex items-center">
+            <Target className="w-6 h-6 mr-2 text-blue-400" />
+            Category Performance
+          </h3>
+          
+          <div className="space-y-4">
+            {categoryPerformance.map((category) => (
+              <div key={category.category} className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-gray-300">{category.category}</span>
+                  <span className="text-gray-400">
+                    {category.correct}/{category.total} ({category.percentage}%)
+                  </span>
+                </div>
+                
+                <div className="w-full bg-gray-700 rounded-full h-2">
+                  <motion.div
+                    className={`h-2 rounded-full ${
+                      category.percentage >= 80 ? 'bg-green-500' :
+                      category.percentage >= 60 ? 'bg-yellow-500' :
+                      'bg-red-500'
+                    }`}
+                    initial={{ width: 0 }}
+                    animate={{ width: `${category.percentage}%` }}
+                    transition={{ delay: 0.3, duration: 0.8 }}
+                  />
+                </div>
+              </div>
+            ))}
+          </div>
+        </motion.div>
+      )}
+
       {/* Strengths and Improvements */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <motion.div
           initial={{ opacity: 0, x: -20 }}
           animate={{ opacity: 1, x: 0 }}
-          transition={{ delay: 0.2 }}
+          transition={{ delay: 0.3 }}
           className="bg-gray-800 rounded-xl p-6 border border-gray-700"
         >
           <h3 className="text-lg font-semibold text-green-400 mb-4 flex items-center">
@@ -363,12 +433,12 @@ ${weakAreas.length > 0
         <motion.div
           initial={{ opacity: 0, x: 20 }}
           animate={{ opacity: 1, x: 0 }}
-          transition={{ delay: 0.3 }}
+          transition={{ delay: 0.4 }}
           className="bg-gray-800 rounded-xl p-6 border border-gray-700"
         >
           <h3 className="text-lg font-semibold text-red-400 mb-4 flex items-center">
             <Target className="w-5 h-5 mr-2" />
-            Areas to Improve (&lt;60%)
+            Areas to Improve (<60%)
           </h3>
           
           {weakAreas.length > 0 ? (
@@ -390,7 +460,7 @@ ${weakAreas.length > 0
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.4 }}
+        transition={{ delay: 0.5 }}
         className="bg-gray-800 rounded-xl p-6 border border-gray-700"
       >
         <h3 className="text-lg font-semibold text-blue-400 mb-4">Recommendations</h3>
