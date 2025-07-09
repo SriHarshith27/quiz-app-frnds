@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { ArrowLeft, Clock, CheckCircle, AlertTriangle } from 'lucide-react';
+import { ArrowLeft, Clock, CheckCircle, AlertTriangle, ChevronRight, ChevronLeft } from 'lucide-react';
 import { Quiz, UserAnswer } from '../types';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
@@ -106,6 +106,13 @@ export const QuizTaker: React.FC<QuizTakerProps> = ({ quiz, onBack, onComplete }
     }
   };
 
+  const handlePrevious = () => {
+    if (currentQuestion > 0) {
+      setCurrentQuestion(currentQuestion - 1);
+      setSelectedAnswer(answers[currentQuestion - 1]?.selected_answer ?? null);
+    }
+  };
+
   const handleSubmit = async () => {
     const score = answers.filter(a => a.is_correct).length;
     const timeCompleted = Date.now();
@@ -189,88 +196,113 @@ export const QuizTaker: React.FC<QuizTakerProps> = ({ quiz, onBack, onComplete }
 
   if (loading) {
     return (
-      <div className="text-center py-12">
-        <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-        <p className="text-gray-400">Loading questions...</p>
+      <div className="min-h-screen bg-gray-900 flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-6" />
+          <p className="text-gray-300 text-lg">Loading your quiz...</p>
+        </div>
       </div>
     );
   }
 
   if (questions.length === 0) {
     return (
-      <div className="text-center py-12">
-        <p className="text-gray-400">No questions available for this quiz</p>
-        <button
-          onClick={onBack}
-          className="mt-4 bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg transition-colors"
-        >
-          Back to Dashboard
-        </button>
+      <div className="min-h-screen bg-gray-900 flex items-center justify-center">
+        <div className="text-center">
+          <AlertTriangle className="w-16 h-16 text-red-500 mx-auto mb-6" />
+          <h2 className="text-2xl font-bold text-white mb-4">No Questions Available</h2>
+          <p className="text-gray-400 mb-8">This quiz doesn't have any questions yet.</p>
+          <button
+            onClick={onBack}
+            className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 rounded-lg transition-colors"
+          >
+            Back to Dashboard
+          </button>
+        </div>
       </div>
     );
   }
 
   if (timeUp) {
     return (
-      <div className="text-center py-12">
-        <AlertTriangle className="w-16 h-16 text-red-500 mx-auto mb-4" />
-        <h2 className="text-2xl font-bold text-white mb-4">Time's Up!</h2>
-        <p className="text-gray-400 mb-6">Your quiz has been automatically submitted.</p>
-        <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto" />
+      <div className="min-h-screen bg-gray-900 flex items-center justify-center">
+        <div className="text-center">
+          <AlertTriangle className="w-20 h-20 text-red-500 mx-auto mb-6" />
+          <h2 className="text-3xl font-bold text-white mb-4">Time's Up!</h2>
+          <p className="text-gray-400 mb-8 text-lg">Your quiz has been automatically submitted.</p>
+          <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto" />
+        </div>
       </div>
     );
   }
 
   if (showReview) {
     return (
-      <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <button
-            onClick={() => setShowReview(false)}
-            className="flex items-center space-x-2 text-gray-400 hover:text-white transition-colors"
-          >
-            <ArrowLeft className="w-5 h-5" />
-            <span>Back to Quiz</span>
-          </button>
-          
-          <button
-            onClick={handleSubmit}
-            className="bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded-lg flex items-center space-x-2 transition-colors"
-          >
-            <CheckCircle className="w-5 h-5" />
-            <span>Submit Quiz</span>
-          </button>
-        </div>
-
-        <div className="bg-gray-800 rounded-xl p-6 border border-gray-700">
-          <h3 className="text-xl font-semibold text-white mb-6">Review Your Answers Before Submitting</h3>
-          
-          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3 mb-6">
-            {questions.map((_, index) => {
-              const answer = answers[index];
-              return (
-                <button
-                  key={index}
-                  onClick={() => goToQuestion(index)}
-                  className={`p-3 rounded-lg text-sm font-medium transition-colors ${
-                    answer
-                      ? 'bg-blue-600 text-white'
-                      : 'bg-gray-600 text-gray-300'
-                  }`}
-                >
-                  {index + 1}
-                </button>
-              );
-            })}
+      <div className="min-h-screen bg-gray-900">
+        <div className="max-w-4xl mx-auto px-6 py-8">
+          {/* Header */}
+          <div className="flex items-center justify-between mb-8">
+            <button
+              onClick={() => setShowReview(false)}
+              className="flex items-center space-x-2 text-gray-400 hover:text-white transition-colors"
+            >
+              <ArrowLeft className="w-5 h-5" />
+              <span>Back to Quiz</span>
+            </button>
+            
+            <button
+              onClick={handleSubmit}
+              className="bg-green-600 hover:bg-green-700 text-white px-8 py-3 rounded-lg flex items-center space-x-2 transition-colors font-medium"
+            >
+              <CheckCircle className="w-5 h-5" />
+              <span>Submit Quiz</span>
+            </button>
           </div>
 
-          <div className="text-center">
-            <p className="text-gray-300 mb-2">
-              Questions Answered: {answers.length} / {questions.length}
-            </p>
-            <p className="text-gray-400 text-sm">
-              Review your answers and click Submit when ready
-            </p>
+          {/* Review Card */}
+          <div className="bg-white rounded-2xl shadow-2xl p-8">
+            <div className="text-center mb-8">
+              <h2 className="text-3xl font-bold text-gray-800 mb-2">Review Your Answers</h2>
+              <p className="text-gray-600">Make sure you're satisfied with your responses before submitting</p>
+            </div>
+            
+            {/* Question Grid */}
+            <div className="grid grid-cols-5 md:grid-cols-10 gap-3 mb-8">
+              {questions.map((_, index) => {
+                const answer = answers[index];
+                return (
+                  <button
+                    key={index}
+                    onClick={() => goToQuestion(index)}
+                    className={`aspect-square rounded-lg text-sm font-bold transition-all hover:scale-105 ${
+                      answer
+                        ? 'bg-blue-500 text-white shadow-lg'
+                        : 'bg-gray-200 text-gray-600 hover:bg-gray-300'
+                    }`}
+                  >
+                    {index + 1}
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Summary */}
+            <div className="bg-gray-50 rounded-xl p-6 text-center">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div>
+                  <p className="text-2xl font-bold text-gray-800">{answers.length}</p>
+                  <p className="text-gray-600">Questions Answered</p>
+                </div>
+                <div>
+                  <p className="text-2xl font-bold text-gray-800">{questions.length - answers.length}</p>
+                  <p className="text-gray-600">Questions Remaining</p>
+                </div>
+                <div>
+                  <p className="text-2xl font-bold text-gray-800">{Math.round((answers.length / questions.length) * 100)}%</p>
+                  <p className="text-gray-600">Completion</p>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -281,42 +313,50 @@ export const QuizTaker: React.FC<QuizTakerProps> = ({ quiz, onBack, onComplete }
   const progress = ((currentQuestion + 1) / questions.length) * 100;
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <button
-          onClick={onBack}
-          className="flex items-center space-x-2 text-gray-400 hover:text-white transition-colors"
-        >
-          <ArrowLeft className="w-5 h-5" />
-          <span>Back to Dashboard</span>
-        </button>
-        
-        <div className="flex items-center space-x-4 text-gray-400">
-          <Clock className="w-5 h-5" />
-          <span>
-            {quiz.time_limit ? (
-              <span className={timeRemaining < 300 ? 'text-red-400' : ''}>
-                {formatTime(timeRemaining)} remaining
-              </span>
-            ) : (
-              `${Math.floor((Date.now() - timeStarted) / 60000)}:${String(Math.floor(((Date.now() - timeStarted) % 60000) / 1000)).padStart(2, '0')}`
-            )}
-          </span>
+    <div className="min-h-screen bg-gray-900">
+      <div className="max-w-4xl mx-auto px-6 py-8">
+        {/* Header */}
+        <div className="flex items-center justify-between mb-8">
+          <button
+            onClick={onBack}
+            className="flex items-center space-x-2 text-gray-400 hover:text-white transition-colors"
+          >
+            <ArrowLeft className="w-5 h-5" />
+            <span>Exit Quiz</span>
+          </button>
+          
+          {/* Timer */}
+          <div className="flex items-center space-x-3">
+            <Clock className="w-5 h-5 text-gray-400" />
+            <span className={`font-mono text-lg ${
+              quiz.time_limit && timeRemaining < 300 ? 'text-red-400' : 'text-gray-300'
+            }`}>
+              {quiz.time_limit ? (
+                formatTime(timeRemaining)
+              ) : (
+                formatTime(Math.floor((Date.now() - timeStarted) / 1000))
+              )}
+            </span>
+          </div>
         </div>
-      </div>
 
-      <div className="bg-gray-800 rounded-xl p-6 border border-gray-700">
-        {quiz.time_limit && (
-          <div className="mb-4">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-sm text-gray-400">Time Remaining</span>
-              <span className={`text-sm font-medium ${timeRemaining < 300 ? 'text-red-400' : 'text-green-400'}`}>
-                {formatTime(timeRemaining)}
-              </span>
-            </div>
-            <div className="w-full bg-gray-700 rounded-full h-2">
+        {/* Quiz Card */}
+        <div className="bg-white rounded-2xl shadow-2xl overflow-hidden">
+          {/* Progress Bar */}
+          <div className="h-2 bg-gray-200">
+            <motion.div
+              className="h-full bg-gradient-to-r from-blue-500 to-purple-600"
+              initial={{ width: 0 }}
+              animate={{ width: `${progress}%` }}
+              transition={{ duration: 0.5 }}
+            />
+          </div>
+
+          {/* Timer Bar (if time limit exists) */}
+          {quiz.time_limit && (
+            <div className="h-1 bg-gray-100">
               <motion.div
-                className={`h-2 rounded-full transition-colors ${
+                className={`h-full transition-colors ${
                   timeRemaining < 300 ? 'bg-red-500' : 'bg-green-500'
                 }`}
                 initial={{ width: '100%' }}
@@ -324,75 +364,94 @@ export const QuizTaker: React.FC<QuizTakerProps> = ({ quiz, onBack, onComplete }
                 transition={{ duration: 0.5 }}
               />
             </div>
-          </div>
-        )}
+          )}
 
-        <div className="mb-6">
-          <div className="flex items-center justify-between mb-2">
-            <h3 className="text-lg font-semibold text-white">{quiz.title}</h3>
-            <span className="text-gray-400 text-sm">
-              Question {currentQuestion + 1} of {questions.length}
-            </span>
-          </div>
-          
-          <div className="w-full bg-gray-700 rounded-full h-2">
-            <motion.div
-              className="bg-blue-500 h-2 rounded-full"
-              initial={{ width: 0 }}
-              animate={{ width: `${progress}%` }}
-              transition={{ duration: 0.3 }}
-            />
-          </div>
-        </div>
+          <div className="p-8">
+            {/* Question Header */}
+            <div className="flex items-center justify-between mb-8">
+              <div>
+                <h1 className="text-2xl font-bold text-gray-800">{quiz.title}</h1>
+                <p className="text-gray-600 mt-1">{quiz.category}</p>
+              </div>
+              <div className="text-right">
+                <p className="text-sm text-gray-500">Question</p>
+                <p className="text-2xl font-bold text-gray-800">
+                  {currentQuestion + 1}<span className="text-gray-400">/{questions.length}</span>
+                </p>
+              </div>
+            </div>
 
-        <div className="mb-8">
-          <h4 className="text-xl text-white mb-6">{question.question}</h4>
-          
-          <div className="space-y-3">
-            {question.options.map((option: string, index: number) => (
-              <motion.button
-                key={index}
-                onClick={() => handleAnswerSelect(index)}
-                whileHover={{ scale: 1.01 }}
-                whileTap={{ scale: 0.99 }}
-                className={`w-full p-4 text-left rounded-lg border transition-all ${
-                  selectedAnswer === index
-                    ? 'bg-blue-600 border-blue-500 text-white'
-                    : 'bg-gray-700 border-gray-600 text-gray-300 hover:border-gray-500'
-                }`}
+            {/* Question */}
+            <div className="mb-8">
+              <h2 className="text-xl font-semibold text-gray-800 leading-relaxed mb-8">
+                {question.question}
+              </h2>
+              
+              {/* Options */}
+              <div className="space-y-4">
+                {question.options.map((option: string, index: number) => (
+                  <motion.button
+                    key={index}
+                    onClick={() => handleAnswerSelect(index)}
+                    whileHover={{ scale: 1.01 }}
+                    whileTap={{ scale: 0.99 }}
+                    className={`w-full p-6 text-left rounded-xl border-2 transition-all ${
+                      selectedAnswer === index
+                        ? 'border-blue-500 bg-blue-50 shadow-lg'
+                        : 'border-gray-200 bg-gray-50 hover:border-gray-300 hover:bg-gray-100'
+                    }`}
+                  >
+                    <div className="flex items-center space-x-4">
+                      <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center ${
+                        selectedAnswer === index
+                          ? 'border-blue-500 bg-blue-500'
+                          : 'border-gray-300'
+                      }`}>
+                        {selectedAnswer === index && (
+                          <div className="w-2 h-2 bg-white rounded-full" />
+                        )}
+                      </div>
+                      <span className={`text-lg ${
+                        selectedAnswer === index ? 'text-blue-700 font-medium' : 'text-gray-700'
+                      }`}>
+                        {option}
+                      </span>
+                    </div>
+                  </motion.button>
+                ))}
+              </div>
+            </div>
+
+            {/* Navigation */}
+            <div className="flex items-center justify-between pt-6 border-t border-gray-200">
+              <div className="flex space-x-3">
+                <button
+                  onClick={handlePrevious}
+                  disabled={currentQuestion === 0}
+                  className="flex items-center space-x-2 px-6 py-3 rounded-lg border border-gray-300 text-gray-600 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                  <span>Previous</span>
+                </button>
+                
+                <button
+                  onClick={() => setShowReview(true)}
+                  className="px-6 py-3 rounded-lg border border-gray-300 text-gray-600 hover:bg-gray-50 transition-colors"
+                >
+                  Review All
+                </button>
+              </div>
+              
+              <button
+                onClick={handleNext}
+                disabled={selectedAnswer === null}
+                className="flex items-center space-x-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white px-8 py-3 rounded-lg transition-colors font-medium"
               >
-                <div className="flex items-center space-x-3">
-                  <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
-                    selectedAnswer === index
-                      ? 'border-white bg-white'
-                      : 'border-gray-400'
-                  }`}>
-                    {selectedAnswer === index && (
-                      <div className="w-2 h-2 bg-blue-600 rounded-full" />
-                    )}
-                  </div>
-                  <span>{option}</span>
-                </div>
-              </motion.button>
-            ))}
+                <span>{currentQuestion === questions.length - 1 ? 'Finish Quiz' : 'Next Question'}</span>
+                <ChevronRight className="w-4 h-4" />
+              </button>
+            </div>
           </div>
-        </div>
-
-        <div className="flex justify-between">
-          <button
-            onClick={() => setShowReview(true)}
-            className="text-gray-400 hover:text-white transition-colors"
-          >
-            Review Answers
-          </button>
-          
-          <button
-            onClick={handleNext}
-            disabled={selectedAnswer === null}
-            className="bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 disabled:cursor-not-allowed text-white px-6 py-2 rounded-lg transition-colors"
-          >
-            {currentQuestion === questions.length - 1 ? 'Finish' : 'Next'}
-          </button>
         </div>
       </div>
     </div>
