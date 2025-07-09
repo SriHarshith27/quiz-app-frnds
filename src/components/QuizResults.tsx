@@ -438,7 +438,7 @@ export const QuizResults: React.FC<QuizResultsProps> = ({ attemptId, onBack }) =
         >
           <h3 className="text-lg font-semibold text-red-400 mb-4 flex items-center">
             <Target className="w-5 h-5 mr-2" />
-            Areas to Improve (<60%)
+            Areas to Improve (&lt;60%)
           </h3>
           
           {weakAreas.length > 0 ? (
