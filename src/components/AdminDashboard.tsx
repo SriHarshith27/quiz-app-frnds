@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { Plus, Users, Trophy, Download, BarChart3, FileText } from 'lucide-react';
 import { Quiz, QuizAttempt, User } from '../types';
 import { supabase } from '../lib/supabase';
+import { useAuth } from '../contexts/AuthContext';
 
 interface AdminDashboardProps {
   onCreateQuiz: () => void;
@@ -22,6 +23,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   onUploadPDF,
   onViewResults,
 }) => {
+  const { user } = useAuth();
   const [stats, setStats] = useState<AdminStats>({
     totalQuizzes: 0,
     totalUsers: 0,
@@ -38,6 +40,14 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
   const loadAdminData = async () => {
     try {
+      // Set admin context for RLS
+      if (user) {
+        await supabase.rpc('set_config', {
+          setting_name: 'app.current_user',
+          setting_value: user.username
+        });
+      }
+
       // Load stats
       const [quizzesRes, usersRes, attemptsRes] = await Promise.all([
         supabase.from('quizzes').select('id'),

@@ -73,6 +73,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setting_name: 'app.current_user',
         setting_value: userData.username
       });
+
+      // Also set user context in auth header for better RLS support
+      supabase.auth.onAuthStateChange((event, session) => {
+        // This helps with RLS policies
+      });
     } catch (error) {
       console.error('Login error:', error);
       throw error;

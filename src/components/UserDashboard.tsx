@@ -27,6 +27,12 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({
     if (!user) return;
 
     try {
+      // Set user context for RLS
+      await supabase.rpc('set_config', {
+        setting_name: 'app.current_user',
+        setting_value: user.username
+      });
+
       // Load available quizzes with question counts
       const { data: quizzesData } = await supabase
         .from('quizzes')
@@ -225,13 +231,22 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({
                   </div>
                 </div>
                 
-                <button
-                  onClick={() => onTakeQuiz(quiz)}
-                  className="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded-lg transition-colors flex items-center justify-center space-x-2"
-                >
-                  <Play className="w-4 h-4" />
-                  <span>Take Quiz</span>
-                </button>
+                {(() => {
+                  const hasAttempted = userProgress?.recentAttempts.some(attempt => attempt.quiz_id === quiz.id);
+                  return (
+                    <button
+                      onClick={() => onTakeQuiz(quiz)}
+                      className={`w-full py-2 px-4 rounded-lg transition-colors flex items-center justify-center space-x-2 ${
+                        hasAttempted 
+                          ? 'bg-green-600 hover:bg-green-700 text-white'
+                          : 'bg-blue-600 hover:bg-blue-700 text-white'
+                      }`}
+                    >
+                      <Play className="w-4 h-4" />
+                      <span>{hasAttempted ? 'Re-attempt Quiz' : 'Take Quiz'}</span>
+                    </button>
+                  );
+                })()}
               </motion.div>
             ))}
           </div>

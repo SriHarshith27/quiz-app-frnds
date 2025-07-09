@@ -88,6 +88,14 @@ export const QuizTaker: React.FC<QuizTakerProps> = ({ quiz, onBack, onComplete }
     const timeTaken = Math.round((timeCompleted - timeStarted) / 1000);
 
     try {
+      // Ensure user context is set before submission
+      if (user) {
+        await supabase.rpc('set_config', {
+          setting_name: 'app.current_user',
+          setting_value: user.username
+        });
+      }
+
       const { data: attempt, error } = await supabase
         .from('quiz_attempts')
         .insert([{
@@ -160,7 +168,7 @@ export const QuizTaker: React.FC<QuizTakerProps> = ({ quiz, onBack, onComplete }
         </div>
 
         <div className="bg-gray-800 rounded-xl p-6 border border-gray-700">
-          <h3 className="text-xl font-semibold text-white mb-6">Review Your Answers</h3>
+          <h3 className="text-xl font-semibold text-white mb-6">Review Your Answers Before Submitting</h3>
           
           <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3 mb-6">
             {questions.map((_, index) => {
@@ -171,9 +179,7 @@ export const QuizTaker: React.FC<QuizTakerProps> = ({ quiz, onBack, onComplete }
                   onClick={() => goToQuestion(index)}
                   className={`p-3 rounded-lg text-sm font-medium transition-colors ${
                     answer
-                      ? answer.is_correct
-                        ? 'bg-green-600 text-white'
-                        : 'bg-red-600 text-white'
+                      ? 'bg-blue-600 text-white'
                       : 'bg-gray-600 text-gray-300'
                   }`}
                 >
@@ -185,10 +191,10 @@ export const QuizTaker: React.FC<QuizTakerProps> = ({ quiz, onBack, onComplete }
 
           <div className="text-center">
             <p className="text-gray-300 mb-2">
-              Score: {answers.filter(a => a.is_correct).length} / {questions.length}
+              Questions Answered: {answers.length} / {questions.length}
             </p>
             <p className="text-gray-400 text-sm">
-              {Math.round((answers.filter(a => a.is_correct).length / questions.length) * 100)}% correct
+              Review your answers and click Submit when ready
             </p>
           </div>
         </div>
