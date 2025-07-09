@@ -501,6 +501,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
       {/* User Management */}
       <div>
+        <h3 className="text-xl font-semibold text-white mb-6 flex items-center">
           <BarChart3 className="w-6 h-6 mr-2 text-purple-400" />
           Recent Quiz Attempts
         </h3>
