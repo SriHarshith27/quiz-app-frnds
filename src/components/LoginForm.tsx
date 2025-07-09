@@ -161,11 +161,6 @@ export const LoginForm: React.FC = () => {
           </button>
         </div>
 
-        {isLogin && (
-          <div className="mt-4 text-center text-gray-400 text-sm">
-            <p>Admin login: admin@quiz.com / admin123</p>
-          </div>
-        )}
       </motion.div>
     </div>
   );
