@@ -260,10 +260,10 @@ export const QuizTaker: React.FC<QuizTakerProps> = ({ quiz, onBack, onComplete }
           </div>
 
           {/* Review Card */}
-          <div className="bg-white rounded-2xl shadow-2xl p-8">
+          <div className="bg-gray-800 rounded-2xl shadow-2xl p-8 border border-gray-700">
             <div className="text-center mb-8">
-              <h2 className="text-3xl font-bold text-gray-800 mb-2">Review Your Answers</h2>
-              <p className="text-gray-600">Make sure you're satisfied with your responses before submitting</p>
+              <h2 className="text-3xl font-bold text-white mb-2">Review Your Answers</h2>
+              <p className="text-gray-400">Make sure you're satisfied with your responses before submitting</p>
             </div>
             
             {/* Question Grid */}
@@ -277,7 +277,7 @@ export const QuizTaker: React.FC<QuizTakerProps> = ({ quiz, onBack, onComplete }
                     className={`aspect-square rounded-lg text-sm font-bold transition-all hover:scale-105 ${
                       answer
                         ? 'bg-blue-500 text-white shadow-lg'
-                        : 'bg-gray-200 text-gray-600 hover:bg-gray-300'
+                        : 'bg-gray-600 text-gray-300 hover:bg-gray-500'
                     }`}
                   >
                     {index + 1}
@@ -287,19 +287,19 @@ export const QuizTaker: React.FC<QuizTakerProps> = ({ quiz, onBack, onComplete }
             </div>
 
             {/* Summary */}
-            <div className="bg-gray-50 rounded-xl p-6 text-center">
+            <div className="bg-gray-700 rounded-xl p-6 text-center">
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div>
-                  <p className="text-2xl font-bold text-gray-800">{answers.length}</p>
-                  <p className="text-gray-600">Questions Answered</p>
+                  <p className="text-2xl font-bold text-white">{answers.length}</p>
+                  <p className="text-gray-400">Questions Answered</p>
                 </div>
                 <div>
-                  <p className="text-2xl font-bold text-gray-800">{questions.length - answers.length}</p>
-                  <p className="text-gray-600">Questions Remaining</p>
+                  <p className="text-2xl font-bold text-white">{questions.length - answers.length}</p>
+                  <p className="text-gray-400">Questions Remaining</p>
                 </div>
                 <div>
-                  <p className="text-2xl font-bold text-gray-800">{Math.round((answers.length / questions.length) * 100)}%</p>
-                  <p className="text-gray-600">Completion</p>
+                  <p className="text-2xl font-bold text-white">{Math.round((answers.length / questions.length) * 100)}%</p>
+                  <p className="text-gray-400">Completion</p>
                 </div>
               </div>
             </div>
@@ -341,9 +341,9 @@ export const QuizTaker: React.FC<QuizTakerProps> = ({ quiz, onBack, onComplete }
         </div>
 
         {/* Quiz Card */}
-        <div className="bg-white rounded-2xl shadow-2xl overflow-hidden">
+        <div className="bg-gray-800 rounded-2xl shadow-2xl overflow-hidden border border-gray-700">
           {/* Progress Bar */}
-          <div className="h-2 bg-gray-200">
+          <div className="h-2 bg-gray-700">
             <motion.div
               className="h-full bg-gradient-to-r from-blue-500 to-purple-600"
               initial={{ width: 0 }}
@@ -354,7 +354,7 @@ export const QuizTaker: React.FC<QuizTakerProps> = ({ quiz, onBack, onComplete }
 
           {/* Timer Bar (if time limit exists) */}
           {quiz.time_limit && (
-            <div className="h-1 bg-gray-100">
+            <div className="h-1 bg-gray-700">
               <motion.div
                 className={`h-full transition-colors ${
                   timeRemaining < 300 ? 'bg-red-500' : 'bg-green-500'
@@ -370,12 +370,12 @@ export const QuizTaker: React.FC<QuizTakerProps> = ({ quiz, onBack, onComplete }
             {/* Question Header */}
             <div className="flex items-center justify-between mb-8">
               <div>
-                <h1 className="text-2xl font-bold text-gray-800">{quiz.title}</h1>
-                <p className="text-gray-600 mt-1">{quiz.category}</p>
+                <h1 className="text-2xl font-bold text-white">{quiz.title}</h1>
+                <p className="text-gray-400 mt-1">{quiz.category}</p>
               </div>
               <div className="text-right">
                 <p className="text-sm text-gray-500">Question</p>
-                <p className="text-2xl font-bold text-gray-800">
+                <p className="text-2xl font-bold text-white">
                   {currentQuestion + 1}<span className="text-gray-400">/{questions.length}</span>
                 </p>
               </div>
@@ -383,7 +383,7 @@ export const QuizTaker: React.FC<QuizTakerProps> = ({ quiz, onBack, onComplete }
 
             {/* Question */}
             <div className="mb-8">
-              <h2 className="text-xl font-semibold text-gray-800 leading-relaxed mb-8">
+              <h2 className="text-xl font-semibold text-white leading-relaxed mb-8">
                 {question.question}
               </h2>
               
@@ -397,22 +397,22 @@ export const QuizTaker: React.FC<QuizTakerProps> = ({ quiz, onBack, onComplete }
                     whileTap={{ scale: 0.99 }}
                     className={`w-full p-6 text-left rounded-xl border-2 transition-all ${
                       selectedAnswer === index
-                        ? 'border-blue-500 bg-blue-50 shadow-lg'
-                        : 'border-gray-200 bg-gray-50 hover:border-gray-300 hover:bg-gray-100'
+                        ? 'border-blue-500 bg-blue-900/30 shadow-lg'
+                        : 'border-gray-600 bg-gray-700 hover:border-gray-500 hover:bg-gray-600'
                     }`}
                   >
                     <div className="flex items-center space-x-4">
                       <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center ${
                         selectedAnswer === index
                           ? 'border-blue-500 bg-blue-500'
-                          : 'border-gray-300'
+                          : 'border-gray-400'
                       }`}>
                         {selectedAnswer === index && (
                           <div className="w-2 h-2 bg-white rounded-full" />
                         )}
                       </div>
                       <span className={`text-lg ${
-                        selectedAnswer === index ? 'text-blue-700 font-medium' : 'text-gray-700'
+                        selectedAnswer === index ? 'text-blue-300 font-medium' : 'text-gray-300'
                       }`}>
                         {option}
                       </span>
@@ -423,12 +423,12 @@ export const QuizTaker: React.FC<QuizTakerProps> = ({ quiz, onBack, onComplete }
             </div>
 
             {/* Navigation */}
-            <div className="flex items-center justify-between pt-6 border-t border-gray-200">
+            <div className="flex items-center justify-between pt-6 border-t border-gray-700">
               <div className="flex space-x-3">
                 <button
                   onClick={handlePrevious}
                   disabled={currentQuestion === 0}
-                  className="flex items-center space-x-2 px-6 py-3 rounded-lg border border-gray-300 text-gray-600 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  className="flex items-center space-x-2 px-6 py-3 rounded-lg border border-gray-600 text-gray-300 hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                 >
                   <ChevronLeft className="w-4 h-4" />
                   <span>Previous</span>
@@ -436,7 +436,7 @@ export const QuizTaker: React.FC<QuizTakerProps> = ({ quiz, onBack, onComplete }
                 
                 <button
                   onClick={() => setShowReview(true)}
-                  className="px-6 py-3 rounded-lg border border-gray-300 text-gray-600 hover:bg-gray-50 transition-colors"
+                  className="px-6 py-3 rounded-lg border border-gray-600 text-gray-300 hover:bg-gray-700 transition-colors"
                 >
                   Review All
                 </button>
@@ -445,7 +445,7 @@ export const QuizTaker: React.FC<QuizTakerProps> = ({ quiz, onBack, onComplete }
               <button
                 onClick={handleNext}
                 disabled={selectedAnswer === null}
-                className="flex items-center space-x-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white px-8 py-3 rounded-lg transition-colors font-medium"
+                className="flex items-center space-x-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 disabled:cursor-not-allowed text-white px-8 py-3 rounded-lg transition-colors font-medium"
               >
                 <span>{currentQuestion === questions.length - 1 ? 'Finish Quiz' : 'Next Question'}</span>
                 <ChevronRight className="w-4 h-4" />
