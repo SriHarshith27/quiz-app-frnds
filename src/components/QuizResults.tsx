@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { ArrowLeft, Trophy, Target, TrendingUp, Download, Eye, EyeOff, CheckCircle, XCircle } from 'lucide-react';
+import { ArrowLeft, Trophy, Target, TrendingUp, Download, Eye, EyeOff, CheckCircle, XCircle, Sparkles } from 'lucide-react';
 import { QuizAttempt, Quiz, CategoryPerformance } from '../types';
 import { supabase } from '../lib/supabase';
+// PersonalizedLearningPlan component for AI-generated learning plans
+import { PersonalizedLearningPlan } from './PersonalizedLearningPlan';
 
 interface QuizResultsProps {
   attemptId: string;
@@ -24,6 +26,7 @@ export const QuizResults: React.FC<QuizResultsProps> = ({ attemptId, onBack }) =
   const [categoryPerformance, setCategoryPerformance] = useState<CategoryPerformance[]>([]);
   const [detailedAnswers, setDetailedAnswers] = useState<DetailedAnswer[]>([]);
   const [showDetailedAnswers, setShowDetailedAnswers] = useState(false);
+  const [showLearningPlan, setShowLearningPlan] = useState(false);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -216,6 +219,19 @@ export const QuizResults: React.FC<QuizResultsProps> = ({ attemptId, onBack }) =
   const percentage = Math.round((attempt.score / attempt.total_questions) * 100);
   const strongAreas = categoryPerformance.filter(c => c.percentage >= 80);
   const weakAreas = categoryPerformance.filter(c => c.percentage < 60);
+  
+  // Filter incorrect answers for learning plan
+  const incorrectAnswers = detailedAnswers.filter(answer => !answer.isCorrect);
+
+  // Show PersonalizedLearningPlan if requested
+  if (showLearningPlan) {
+    return (
+      <PersonalizedLearningPlan
+        incorrectAnswers={incorrectAnswers}
+        onBack={() => setShowLearningPlan(false)}
+      />
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -229,6 +245,16 @@ export const QuizResults: React.FC<QuizResultsProps> = ({ attemptId, onBack }) =
         </button>
         
         <div className="flex space-x-3">
+          {incorrectAnswers.length > 0 && (
+            <button
+              onClick={() => setShowLearningPlan(true)}
+              className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white px-4 py-2 rounded-lg flex items-center space-x-2 transition-all duration-200 transform hover:scale-105"
+            >
+              <Sparkles className="w-4 h-4" />
+              <span>Generate My Learning Plan</span>
+            </button>
+          )}
+          
           <button
             onClick={() => setShowDetailedAnswers(!showDetailedAnswers)}
             className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center space-x-2 transition-colors"

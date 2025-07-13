@@ -8,10 +8,11 @@ import { useAuth } from '../contexts/AuthContext';
 interface QuizTakerProps {
   quiz: Quiz;
   onBack: () => void;
-  onComplete: (attemptId: string) => void;
+  onComplete: (attemptId?: string) => void;
+  isPractice?: boolean;
 }
 
-export const QuizTaker: React.FC<QuizTakerProps> = ({ quiz, onBack, onComplete }) => {
+export const QuizTaker: React.FC<QuizTakerProps> = ({ quiz, onBack, onComplete, isPractice }) => {
   const { user } = useAuth();
   const [questions, setQuestions] = useState<any[]>([]);
   const [currentQuestion, setCurrentQuestion] = useState(0);
@@ -24,13 +25,20 @@ export const QuizTaker: React.FC<QuizTakerProps> = ({ quiz, onBack, onComplete }
   const [timeUp, setTimeUp] = useState(false);
 
   useEffect(() => {
+    // FIX: This condition is now more specific. It checks if the first item in the array has a 'question' property, 
+    // ensuring it's a real question object, not a count object.
+    if (quiz.questions && quiz.questions.length > 0 && quiz.questions[0].question) {
+      setQuestions(quiz.questions);
+      setLoading(false);
+      return;
+    }
+    
     loadQuestions();
     
-    // Set up timer if quiz has time limit
     if (quiz.time_limit) {
-      setTimeRemaining(quiz.time_limit * 60); // Convert minutes to seconds
+      setTimeRemaining(quiz.time_limit * 60);
     }
-  }, [quiz.id]);
+  }, [quiz.id, quiz.questions]);
 
   useEffect(() => {
     if (timeRemaining > 0 && !showReview && !timeUp) {
@@ -82,6 +90,8 @@ export const QuizTaker: React.FC<QuizTakerProps> = ({ quiz, onBack, onComplete }
     if (selectedAnswer === null) return;
 
     const question = questions[currentQuestion];
+    if (!question) return;
+    
     const isCorrect = selectedAnswer === question.correct_answer;
 
     const newAnswer: UserAnswer = {
@@ -102,6 +112,10 @@ export const QuizTaker: React.FC<QuizTakerProps> = ({ quiz, onBack, onComplete }
       setCurrentQuestion(currentQuestion + 1);
       setSelectedAnswer(null);
     } else {
+      if (isPractice) {
+        onComplete();
+        return;
+      }
       setShowReview(true);
     }
   };
@@ -114,7 +128,8 @@ export const QuizTaker: React.FC<QuizTakerProps> = ({ quiz, onBack, onComplete }
   };
 
   const handleSubmit = async () => {
-    // Check if user has exceeded attempt limit
+    if (isPractice) return;
+    
     if (quiz.max_attempts) {
       const { data: existingAttempts } = await supabase
         .from('quiz_attempts')
@@ -134,7 +149,6 @@ export const QuizTaker: React.FC<QuizTakerProps> = ({ quiz, onBack, onComplete }
     const timeTaken = Math.round((timeCompleted - timeStarted) / 1000);
 
     try {
-      // Ensure user context is set before submission
       if (user) {
         await supabase.rpc('set_config', {
           setting_name: 'app.current_user',
@@ -164,7 +178,6 @@ export const QuizTaker: React.FC<QuizTakerProps> = ({ quiz, onBack, onComplete }
   };
 
   const handleAutoSubmit = async () => {
-    // Auto-submit when time is up
     const score = answers.filter(a => a.is_correct).length;
     const timeCompleted = Date.now();
     const timeTaken = Math.round((timeCompleted - timeStarted) / 1000);
@@ -209,30 +222,12 @@ export const QuizTaker: React.FC<QuizTakerProps> = ({ quiz, onBack, onComplete }
     return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
   };
 
-  if (loading) {
+  if (loading || questions.length === 0) {
     return (
       <div className="min-h-screen bg-gray-900 flex items-center justify-center">
         <div className="text-center">
           <div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-6" />
           <p className="text-gray-300 text-lg">Loading your quiz...</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (questions.length === 0) {
-    return (
-      <div className="min-h-screen bg-gray-900 flex items-center justify-center">
-        <div className="text-center">
-          <AlertTriangle className="w-16 h-16 text-red-500 mx-auto mb-6" />
-          <h2 className="text-2xl font-bold text-white mb-4">No Questions Available</h2>
-          <p className="text-gray-400 mb-8">This quiz doesn't have any questions yet.</p>
-          <button
-            onClick={onBack}
-            className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 rounded-lg transition-colors"
-          >
-            Back to Dashboard
-          </button>
         </div>
       </div>
     );
@@ -255,7 +250,6 @@ export const QuizTaker: React.FC<QuizTakerProps> = ({ quiz, onBack, onComplete }
     return (
       <div className="min-h-screen bg-gray-900">
         <div className="max-w-4xl mx-auto px-6 py-8">
-          {/* Header */}
           <div className="flex items-center justify-between mb-8">
             <button
               onClick={() => setShowReview(false)}
@@ -274,14 +268,12 @@ export const QuizTaker: React.FC<QuizTakerProps> = ({ quiz, onBack, onComplete }
             </button>
           </div>
 
-          {/* Review Card */}
           <div className="bg-gray-800 rounded-2xl shadow-2xl p-8 border border-gray-700">
             <div className="text-center mb-8">
               <h2 className="text-3xl font-bold text-white mb-2">Review Your Answers</h2>
               <p className="text-gray-400">Make sure you're satisfied with your responses before submitting</p>
             </div>
             
-            {/* Question Grid */}
             <div className="grid grid-cols-5 md:grid-cols-10 gap-3 mb-8">
               {questions.map((_, index) => {
                 const answer = answers[index];
@@ -301,7 +293,6 @@ export const QuizTaker: React.FC<QuizTakerProps> = ({ quiz, onBack, onComplete }
               })}
             </div>
 
-            {/* Summary */}
             <div className="bg-gray-700 rounded-xl p-6 text-center">
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div>
@@ -325,12 +316,22 @@ export const QuizTaker: React.FC<QuizTakerProps> = ({ quiz, onBack, onComplete }
   }
 
   const question = questions[currentQuestion];
+  if (!question || !question.options) {
+      return (
+        <div className="min-h-screen bg-gray-900 flex items-center justify-center">
+          <div className="text-center">
+              <div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-6" />
+              <p className="text-gray-300 text-lg">Preparing next question...</p>
+          </div>
+        </div>
+      );
+  }
+  
   const progress = ((currentQuestion + 1) / questions.length) * 100;
 
   return (
     <div className="min-h-screen bg-gray-900">
       <div className="max-w-4xl mx-auto px-6 py-8">
-        {/* Header */}
         <div className="flex items-center justify-between mb-8">
           <button
             onClick={onBack}
@@ -340,7 +341,6 @@ export const QuizTaker: React.FC<QuizTakerProps> = ({ quiz, onBack, onComplete }
             <span>Exit Quiz</span>
           </button>
           
-          {/* Timer */}
           <div className="flex items-center space-x-3">
             <Clock className="w-5 h-5 text-gray-400" />
             <span className={`font-mono text-lg ${
@@ -355,9 +355,7 @@ export const QuizTaker: React.FC<QuizTakerProps> = ({ quiz, onBack, onComplete }
           </div>
         </div>
 
-        {/* Quiz Card */}
         <div className="bg-gray-800 rounded-2xl shadow-2xl overflow-hidden border border-gray-700">
-          {/* Progress Bar */}
           <div className="h-2 bg-gray-700">
             <motion.div
               className="h-full bg-gradient-to-r from-blue-500 to-purple-600"
@@ -367,7 +365,6 @@ export const QuizTaker: React.FC<QuizTakerProps> = ({ quiz, onBack, onComplete }
             />
           </div>
 
-          {/* Timer Bar (if time limit exists) */}
           {quiz.time_limit && (
             <div className="h-1 bg-gray-700">
               <motion.div
@@ -382,7 +379,6 @@ export const QuizTaker: React.FC<QuizTakerProps> = ({ quiz, onBack, onComplete }
           )}
 
           <div className="p-8">
-            {/* Question Header */}
             <div className="flex items-center justify-between mb-8">
               <div>
                 <h1 className="text-2xl font-bold text-white">{quiz.title}</h1>
@@ -396,13 +392,11 @@ export const QuizTaker: React.FC<QuizTakerProps> = ({ quiz, onBack, onComplete }
               </div>
             </div>
 
-            {/* Question */}
             <div className="mb-8">
               <h2 className="text-xl font-semibold text-white leading-relaxed mb-8">
                 {question.question}
               </h2>
               
-              {/* Options */}
               <div className="space-y-4">
                 {question.options.map((option: string, index: number) => (
                   <motion.button
@@ -437,7 +431,6 @@ export const QuizTaker: React.FC<QuizTakerProps> = ({ quiz, onBack, onComplete }
               </div>
             </div>
 
-            {/* Navigation */}
             <div className="flex items-center justify-between pt-6 border-t border-gray-700">
               <div className="flex space-x-3">
                 <button
