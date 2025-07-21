@@ -5,6 +5,10 @@ import { Quiz, QuizAttempt, UserProgress, UserAnswer } from '../types';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 
+interface QuizWithCount extends Quiz {
+  questionCount: number;
+}
+
 interface UserDashboardProps {
   onTakeQuiz: (quiz: Quiz) => void;
   onViewResults: (attempt: QuizAttempt) => void;
@@ -15,7 +19,7 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({
   onViewResults,
 }) => {
   const { user } = useAuth();
-  const [quizzes, setQuizzes] = useState<Quiz[]>([]);
+  const [quizzes, setQuizzes] = useState<QuizWithCount[]>([]);
   const [userProgress, setUserProgress] = useState<UserProgress | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -50,11 +54,24 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({
         .order('completed_at', { ascending: false });
 
       if (quizzesData) {
-        const formattedQuizzes = quizzesData.map(quiz => ({
-          ...quiz,
-          questionCount: quiz.questions?.[0]?.count || 0
-        }));
-        setQuizzes(formattedQuizzes);
+        const now = new Date();
+        const filteredQuizzes = quizzesData
+          .filter(quiz => {
+            const quizStartTime = quiz.start_time ? new Date(quiz.start_time) : null;
+
+            // Quiz is available if:
+            // 1. No start_time is set (immediately available)
+            // OR
+            // 2. Current time is on or after start_time
+            const isAvailableByStartTime = !quizStartTime || now >= quizStartTime;
+
+            return isAvailableByStartTime;
+          })
+          .map(quiz => ({
+            ...quiz,
+            questionCount: quiz.questions?.[0]?.count || 0
+          }));
+        setQuizzes(filteredQuizzes);
       }
 
       if (attemptsData) {

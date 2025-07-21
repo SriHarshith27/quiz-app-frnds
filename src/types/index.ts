@@ -16,6 +16,7 @@ export interface Quiz {
   category: string;
   time_limit?: number; // in minutes
   max_attempts?: number; // maximum attempts per user
+  start_time?: string; // New: Timestamp when the quiz becomes available (ISO string)
 }
 
 export interface Question {

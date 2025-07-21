@@ -1,7 +1,7 @@
 // Setup type definitions for built-in Supabase Runtime APIs
 /// <reference types="https://esm.sh/@supabase/functions-js/src/edge-runtime.d.ts" />
 
-import Groq from "https://esm.sh/groq-sdk@0.7.0"
+import { GoogleGenerativeAI } from "@google/generative-ai"
 
 interface QuizQuestion {
   question: string;
@@ -18,7 +18,7 @@ interface ResponseBody {
   newQuizQuestions: QuizQuestion[];
 }
 
-console.log("Generate Learning Plan Function Started (Groq)")
+console.log("Generate Learning Plan Function Started")
 
 Deno.serve(async (req: Request) => {
   // Handle CORS preflight requests
@@ -50,11 +50,11 @@ Deno.serve(async (req: Request) => {
       )
     }
 
-    // Initialize Groq client
-    const apiKey = Deno.env.get("GROQ_API_KEY")
+    // Initialize Google Generative AI client
+    const apiKey = Deno.env.get("GOOGLE_API_KEY")
     if (!apiKey) {
       return new Response(
-        JSON.stringify({ error: "Groq API key not configured" }),
+        JSON.stringify({ error: "Google API key not configured" }),
         { 
           status: 500,
           headers: { 
@@ -65,7 +65,8 @@ Deno.serve(async (req: Request) => {
       )
     }
 
-    const groq = new Groq({ apiKey })
+    const genAI = new GoogleGenerativeAI(apiKey)
+    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" })
 
     // First AI Call: Generate Learning Plan
     const learningPlanPrompt = `
@@ -99,19 +100,8 @@ Make sure the content is educational, comprehensive, and well-structured with pr
 Focus on clear explanations and practical examples that will help the student understand the concepts they missed.
 `
 
-    const learningPlanCompletion = await groq.chat.completions.create({
-      messages: [
-        {
-          role: "user",
-          content: learningPlanPrompt
-        }
-      ],
-      model: "llama-3.1-8b-instant",
-      temperature: 0.7,
-      max_tokens: 4000,
-    })
-
-    const learningPlan = learningPlanCompletion.choices[0]?.message?.content || ""
+    const learningPlanResult = await model.generateContent(learningPlanPrompt)
+    const learningPlan = learningPlanResult.response.text()
 
     // Calculate dynamic number of practice questions
     const questionCount = Math.min(Math.ceil(incorrectAnswers.length / 2), 5);
@@ -150,19 +140,8 @@ You MUST respond with a valid JSON object in this exact format:
 Respond with ONLY the JSON object, no additional text, markdown formatting, or code blocks.
 `
 
-    const quizCompletion = await groq.chat.completions.create({
-      messages: [
-        {
-          role: "user",
-          content: quizPrompt
-        }
-      ],
-      model: "llama-3.1-8b-instant",
-      temperature: 0.3,
-      max_tokens: 2000,
-    })
-
-    let quizResponse = quizCompletion.choices[0]?.message?.content || ""
+    const quizResult = await model.generateContent(quizPrompt)
+    let quizResponse = quizResult.response.text()
     
     // Clean up the response to ensure it's valid JSON
     quizResponse = quizResponse.replace(/```json\n?/, '').replace(/```\n?$/, '').trim()
@@ -263,16 +242,4 @@ Respond with ONLY the JSON object, no additional text, markdown formatting, or c
   }
 })
 
-/* To invoke locally:
 
-  1. Run `supabase start` (see: https://supabase.com/docs/reference/cli/supabase-start)
-  2. Make an HTTP request:
-
-  curl -i --location --request POST 'http://127.0.0.1:54321/functions/v1/generate-learning-plan' \
-    --header 'Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0' \
-    --header 'Content-Type: application/json' \
-    --data '{"incorrectAnswers":["What is the capital of France?", "What is 2+2?"]}'
-
-  Note: Make sure to set the GROQ_API_KEY environment variable in your Supabase project settings.
-
-*/

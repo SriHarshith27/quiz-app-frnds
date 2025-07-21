@@ -17,6 +17,7 @@ export const QuizCreator: React.FC<QuizCreatorProps> = ({ onBack, onSave }) => {
   const [category, setCategory] = useState('General');
   const [timeLimit, setTimeLimit] = useState<number>(30); // Default 30 minutes
   const [maxAttempts, setMaxAttempts] = useState<number | null>(null); // Default unlimited
+  const [startTime, setStartTime] = useState<string>(''); // For date and time input
   const [questions, setQuestions] = useState<Omit<Question, 'id' | 'quiz_id'>[]>([
     {
       question: '',
@@ -70,6 +71,9 @@ export const QuizCreator: React.FC<QuizCreatorProps> = ({ onBack, onSave }) => {
         });
       }
 
+      // Convert local datetime string to ISO string if it's not already
+      const quizStartTime = startTime ? new Date(startTime).toISOString() : null;
+
       // Create quiz
       const { data: quiz, error: quizError } = await supabase
         .from('quizzes')
@@ -79,7 +83,8 @@ export const QuizCreator: React.FC<QuizCreatorProps> = ({ onBack, onSave }) => {
           category,
           time_limit: timeLimit,
           max_attempts: maxAttempts,
-          created_by: user?.id
+          created_by: user?.id,
+          start_time: quizStartTime, // New: Add start_time
         }])
         .select()
         .single();
@@ -190,6 +195,19 @@ export const QuizCreator: React.FC<QuizCreatorProps> = ({ onBack, onSave }) => {
               placeholder="Unlimited"
             />
             <p className="text-xs text-gray-500 mt-1">Leave empty for unlimited</p>
+          </div>
+        </div>
+        
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+          <div>
+            <label className="block text-sm font-medium text-gray-300 mb-2">Start Time (Optional)</label>
+            <input
+              type="datetime-local"
+              value={startTime}
+              onChange={(e) => setStartTime(e.target.value)}
+              className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+            <p className="text-xs text-gray-500 mt-1">Quiz will be available from this date and time. Leave empty for immediate availability.</p>
           </div>
         </div>
         

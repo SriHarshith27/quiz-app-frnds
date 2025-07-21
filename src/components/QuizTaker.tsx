@@ -25,6 +25,16 @@ export const QuizTaker: React.FC<QuizTakerProps> = ({ quiz, onBack, onComplete, 
   const [timeUp, setTimeUp] = useState(false);
 
   useEffect(() => {
+    // Check quiz availability based on start_time before proceeding
+    const now = new Date();
+    const quizStartTime = quiz.start_time ? new Date(quiz.start_time) : null;
+
+    if (quizStartTime && now < quizStartTime) {
+      alert(`This quiz is scheduled to start on ${quizStartTime.toLocaleString()}. Please try again later.`);
+      onBack();
+      return;
+    }
+
     // FIX: This condition is now more specific. It checks if the first item in the array has a 'question' property, 
     // ensuring it's a real question object, not a count object.
     if (quiz.questions && quiz.questions.length > 0 && quiz.questions[0].question) {
@@ -33,12 +43,12 @@ export const QuizTaker: React.FC<QuizTakerProps> = ({ quiz, onBack, onComplete, 
       return;
     }
     
-    loadQuestions();
+    loadQuestions(); // Call loadQuestions only if available
     
     if (quiz.time_limit) {
       setTimeRemaining(quiz.time_limit * 60);
     }
-  }, [quiz.id, quiz.questions]);
+  }, [quiz.id, quiz.questions]); // Ensure quiz object changes re-trigger this effect
 
   useEffect(() => {
     if (timeRemaining > 0 && !showReview && !timeUp) {
