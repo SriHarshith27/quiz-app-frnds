@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Eye, Clock, Users, Play, ArrowLeft, BookOpen } from 'lucide-react';
+import { Eye, Clock, Users, Play, ArrowLeft, BookOpen, Star, Heart, Share2 } from 'lucide-react';
 import { Quiz, Question } from '../types';
 import { supabase } from '../lib/supabase';
+import { useAuth } from '../contexts/AuthContext';
 
 interface QuizPreviewProps {
   quiz: Quiz;
@@ -11,9 +12,12 @@ interface QuizPreviewProps {
 }
 
 export const QuizPreview: React.FC<QuizPreviewProps> = ({ quiz, onBack, onStartQuiz }) => {
+  const { user } = useAuth();
   const [questions, setQuestions] = useState<Question[]>([]);
   const [loading, setLoading] = useState(true);
   const [userAttempts, setUserAttempts] = useState(0);
+  const [isFavorited, setIsFavorited] = useState(false);
+  const [difficulty, setDifficulty] = useState<'Easy' | 'Medium' | 'Hard'>('Medium');
 
   useEffect(() => {
     loadQuizDetails();
@@ -21,23 +25,68 @@ export const QuizPreview: React.FC<QuizPreviewProps> = ({ quiz, onBack, onStartQ
 
   const loadQuizDetails = async () => {
     try {
-      // Load questions count and sample questions
+      // Load questions
       const { data: questionsData } = await supabase
         .from('questions')
         .select('*')
         .eq('quiz_id', quiz.id)
-        .limit(3); // Show first 3 questions as preview
+        .limit(3);
 
       if (questionsData) {
         setQuestions(questionsData);
+        // Calculate difficulty based on question complexity
+        const avgLength = questionsData.reduce((sum, q) => sum + q.question.length, 0) / questionsData.length;
+        if (avgLength > 100) setDifficulty('Hard');
+        else if (avgLength > 50) setDifficulty('Medium');
+        else setDifficulty('Easy');
       }
 
-      // Load user attempts count (if user is logged in)
-      // This would need user context
+      // Load user attempts if logged in
+      if (user) {
+        const { data: attempts } = await supabase
+          .from('quiz_attempts')
+          .select('id')
+          .eq('user_id', user.id)
+          .eq('quiz_id', quiz.id);
+        
+        setUserAttempts(attempts?.length || 0);
+      }
     } catch (error) {
       console.error('Error loading quiz details:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleFavorite = () => {
+    setIsFavorited(!isFavorited);
+    // In a real app, this would save to database
+  };
+
+  const handleShare = async () => {
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: quiz.title,
+          text: quiz.description,
+          url: window.location.href,
+        });
+      } catch (error) {
+        console.log('Error sharing:', error);
+      }
+    } else {
+      // Fallback: copy to clipboard
+      navigator.clipboard.writeText(window.location.href);
+      alert('Quiz link copied to clipboard!');
+    }
+  };
+
+  const getDifficultyColor = (diff: string) => {
+    switch (diff) {
+      case 'Easy': return 'text-green-400 bg-green-900/30';
+      case 'Medium': return 'text-yellow-400 bg-yellow-900/30';
+      case 'Hard': return 'text-red-400 bg-red-900/30';
+      default: return 'text-gray-400 bg-gray-900/30';
     }
   };
 
@@ -51,119 +100,136 @@ export const QuizPreview: React.FC<QuizPreviewProps> = ({ quiz, onBack, onStartQ
 
   return (
     <div className="min-h-screen bg-gray-900">
-      <div className="max-w-4xl mx-auto px-6 py-8">
-        {/* Header */}
-        <div className="flex items-center justify-between mb-8">
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 py-4 sm:py-8">
+        {/* Mobile-optimized Header */}
+        <div className="flex items-center justify-between mb-6 sm:mb-8">
           <button
             onClick={onBack}
-            className="flex items-center space-x-2 text-gray-400 hover:text-white transition-colors"
+            className="flex items-center space-x-2 text-gray-400 hover:text-white transition-colors touch-target"
           >
             <ArrowLeft className="w-5 h-5" />
-            <span>Back to Quizzes</span>
+            <span className="hidden sm:inline">Back to Quizzes</span>
           </button>
+          
+          <div className="flex items-center space-x-2">
+            <button
+              onClick={handleFavorite}
+              className={`p-2 rounded-lg transition-colors touch-target ${
+                isFavorited ? 'text-red-400 bg-red-900/30' : 'text-gray-400 hover:text-red-400'
+              }`}
+            >
+              <Heart className={`w-5 h-5 ${isFavorited ? 'fill-current' : ''}`} />
+            </button>
+            <button
+              onClick={handleShare}
+              className="p-2 rounded-lg text-gray-400 hover:text-blue-400 transition-colors touch-target"
+            >
+              <Share2 className="w-5 h-5" />
+            </button>
+          </div>
         </div>
 
-        {/* Quiz Info Card */}
+        {/* Quiz Info Card - Mobile Responsive */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="bg-gray-800 rounded-2xl p-8 border border-gray-700 mb-8"
+          className="bg-gray-800 rounded-2xl p-4 sm:p-8 border border-gray-700 mb-6 sm:mb-8"
         >
-          <div className="flex items-start justify-between mb-6">
-            <div className="flex-1">
-              <h1 className="text-3xl font-bold text-white mb-3">{quiz.title}</h1>
-              <p className="text-gray-300 text-lg mb-4">{quiz.description}</p>
+          <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between mb-6">
+            <div className="flex-1 mb-6 lg:mb-0">
+              <h1 className="text-2xl sm:text-3xl font-bold text-white mb-3">{quiz.title}</h1>
+              <p className="text-gray-300 text-base sm:text-lg mb-4 leading-relaxed">{quiz.description}</p>
               
-              <div className="flex items-center space-x-6 text-sm text-gray-400">
-                <div className="flex items-center space-x-2">
+              {/* Mobile-friendly tags */}
+              <div className="flex flex-wrap items-center gap-3 text-sm text-gray-400">
+                <div className="flex items-center space-x-2 bg-gray-700/50 px-3 py-1 rounded-full">
                   <BookOpen className="w-4 h-4" />
                   <span>{quiz.category}</span>
                 </div>
-                <div className="flex items-center space-x-2">
+                <div className="flex items-center space-x-2 bg-gray-700/50 px-3 py-1 rounded-full">
                   <Eye className="w-4 h-4" />
                   <span>{questions.length} questions</span>
                 </div>
                 {quiz.time_limit && (
-                  <div className="flex items-center space-x-2">
+                  <div className="flex items-center space-x-2 bg-gray-700/50 px-3 py-1 rounded-full">
                     <Clock className="w-4 h-4" />
-                    <span>{quiz.time_limit} minutes</span>
+                    <span>{quiz.time_limit} min</span>
                   </div>
                 )}
-                {quiz.max_attempts && (
-                  <div className="flex items-center space-x-2">
-                    <Users className="w-4 h-4" />
-                    <span>Max {quiz.max_attempts} attempts</span>
-                  </div>
-                )}
+                <div className={`px-3 py-1 rounded-full text-xs font-medium ${getDifficultyColor(difficulty)}`}>
+                  <Star className="w-3 h-3 inline mr-1" />
+                  {difficulty}
+                </div>
               </div>
             </div>
             
+            {/* Mobile-optimized Start Button */}
             <button
               onClick={onStartQuiz}
-              className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white px-8 py-4 rounded-xl flex items-center space-x-3 transition-all transform hover:scale-105 shadow-lg"
+              className="w-full lg:w-auto bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white px-6 sm:px-8 py-3 sm:py-4 rounded-xl flex items-center justify-center space-x-3 transition-all transform hover:scale-105 shadow-lg touch-target"
             >
-              <Play className="w-6 h-6" />
-              <span className="text-lg font-semibold">Start Quiz</span>
+              <Play className="w-5 sm:w-6 h-5 sm:h-6" />
+              <span className="text-base sm:text-lg font-semibold">Start Quiz</span>
             </button>
           </div>
 
-          {/* Quiz Stats */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 bg-gray-700/50 rounded-xl">
+          {/* Quiz Stats - Mobile Grid */}
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 p-4 bg-gray-700/50 rounded-xl">
             <div className="text-center">
-              <p className="text-2xl font-bold text-blue-400">{questions.length}</p>
-              <p className="text-gray-400 text-sm">Total Questions</p>
+              <p className="text-xl sm:text-2xl font-bold text-blue-400">{questions.length}</p>
+              <p className="text-gray-400 text-xs sm:text-sm">Questions</p>
             </div>
             <div className="text-center">
-              <p className="text-2xl font-bold text-green-400">
+              <p className="text-xl sm:text-2xl font-bold text-green-400">
                 {quiz.time_limit ? `${quiz.time_limit}min` : '∞'}
               </p>
-              <p className="text-gray-400 text-sm">Time Limit</p>
+              <p className="text-gray-400 text-xs sm:text-sm">Time Limit</p>
             </div>
-            <div className="text-center">
-              <p className="text-2xl font-bold text-purple-400">
-                {quiz.max_attempts || '∞'}
+            <div className="text-center col-span-2 sm:col-span-1">
+              <p className="text-xl sm:text-2xl font-bold text-purple-400">
+                {userAttempts}/{quiz.max_attempts || '∞'}
               </p>
-              <p className="text-gray-400 text-sm">Max Attempts</p>
+              <p className="text-gray-400 text-xs sm:text-sm">Attempts</p>
             </div>
           </div>
         </motion.div>
 
-        {/* Sample Questions Preview */}
+        {/* Sample Questions - Mobile Optimized */}
         {questions.length > 0 && (
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.1 }}
-            className="bg-gray-800 rounded-2xl p-8 border border-gray-700"
+            className="bg-gray-800 rounded-2xl p-4 sm:p-8 border border-gray-700"
           >
-            <h2 className="text-2xl font-bold text-white mb-6 flex items-center">
-              <Eye className="w-6 h-6 mr-3 text-blue-400" />
+            <h2 className="text-xl sm:text-2xl font-bold text-white mb-4 sm:mb-6 flex items-center">
+              <Eye className="w-5 sm:w-6 h-5 sm:h-6 mr-3 text-blue-400" />
               Sample Questions
             </h2>
             
-            <div className="space-y-6">
+            <div className="space-y-4 sm:space-y-6">
               {questions.slice(0, 3).map((question, index) => (
-                <div key={question.id} className="border border-gray-700 rounded-xl p-6">
-                  <div className="flex items-start justify-between mb-4">
-                    <h3 className="text-lg font-semibold text-white">
+                <div key={question.id} className="border border-gray-700 rounded-xl p-4 sm:p-6">
+                  <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between mb-4">
+                    <h3 className="text-base sm:text-lg font-semibold text-white mb-2 sm:mb-0">
                       Question {index + 1}
                     </h3>
-                    <span className="bg-gray-700 px-3 py-1 rounded-full text-xs text-gray-300">
+                    <span className="bg-gray-700 px-3 py-1 rounded-full text-xs text-gray-300 self-start">
                       {question.category}
                     </span>
                   </div>
                   
-                  <p className="text-gray-300 mb-4 leading-relaxed">
+                  <p className="text-gray-300 mb-4 leading-relaxed text-sm sm:text-base">
                     {question.question}
                   </p>
                   
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <div className="grid grid-cols-1 gap-2 sm:gap-3">
                     {question.options.map((option, optionIndex) => (
                       <div
                         key={optionIndex}
                         className="p-3 bg-gray-700/50 rounded-lg border border-gray-600"
                       >
-                        <span className="text-gray-300">{option}</span>
+                        <span className="text-gray-300 text-sm sm:text-base">{option}</span>
                       </div>
                     ))}
                   </div>
@@ -172,7 +238,7 @@ export const QuizPreview: React.FC<QuizPreviewProps> = ({ quiz, onBack, onStartQ
               
               {questions.length > 3 && (
                 <div className="text-center py-4">
-                  <p className="text-gray-400">
+                  <p className="text-gray-400 text-sm sm:text-base">
                     And {questions.length - 3} more questions...
                   </p>
                 </div>
@@ -181,17 +247,17 @@ export const QuizPreview: React.FC<QuizPreviewProps> = ({ quiz, onBack, onStartQ
           </motion.div>
         )}
 
-        {/* Instructions */}
+        {/* Instructions - Mobile Friendly */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2 }}
-          className="mt-8 bg-blue-900/20 rounded-xl p-6 border border-blue-700"
+          className="mt-6 sm:mt-8 bg-blue-900/20 rounded-xl p-4 sm:p-6 border border-blue-700"
         >
-          <h3 className="text-lg font-semibold text-blue-300 mb-4">Quiz Instructions</h3>
-          <ul className="space-y-2 text-blue-200">
+          <h3 className="text-base sm:text-lg font-semibold text-blue-300 mb-4">Quiz Instructions</h3>
+          <ul className="space-y-2 text-blue-200 text-sm sm:text-base">
             <li>• Read each question carefully before selecting your answer</li>
-            <li>• You can navigate between questions using the Previous/Next buttons</li>
+            <li>• Navigate between questions using Previous/Next buttons</li>
             <li>• Review your answers before submitting the quiz</li>
             {quiz.time_limit && (
               <li>• You have {quiz.time_limit} minutes to complete this quiz</li>
@@ -199,7 +265,7 @@ export const QuizPreview: React.FC<QuizPreviewProps> = ({ quiz, onBack, onStartQ
             {quiz.max_attempts && (
               <li>• You can attempt this quiz up to {quiz.max_attempts} times</li>
             )}
-            <li>• Your results will be available immediately after submission</li>
+            <li>• Results will be available immediately after submission</li>
           </ul>
         </motion.div>
       </div>

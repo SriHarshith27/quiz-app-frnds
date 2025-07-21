@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Plus, Users, Trophy, Download, BarChart3, FileText, Eye, EyeOff, Key } from 'lucide-react';
+import { Plus, Users, Trophy, Download, BarChart3, FileText, Eye, EyeOff, Key, TrendingUp } from 'lucide-react';
 import { Quiz, QuizAttempt, User } from '../types';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
+import { EnhancedAnalytics } from './EnhancedAnalytics';
 
 interface AdminDashboardProps {
   onCreateQuiz: () => void;
@@ -24,6 +25,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   onViewResults,
 }) => {
   const { user } = useAuth();
+  const [activeTab, setActiveTab] = useState<'overview' | 'analytics' | 'users'>('overview');
   const [stats, setStats] = useState<AdminStats>({
     totalQuizzes: 0,
     totalUsers: 0,
@@ -278,6 +280,94 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
+        {/* Tab Navigation */}
+        <div className="flex flex-wrap items-center space-x-1 bg-gray-800 p-1 rounded-xl border border-gray-700">
+          <button
+            onClick={() => setActiveTab('overview')}
+            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+              activeTab === 'overview'
+                ? 'bg-blue-600 text-white'
+                : 'text-gray-400 hover:text-white hover:bg-gray-700'
+            }`}
+          >
+            Overview
+          </button>
+          <button
+            onClick={() => setActiveTab('analytics')}
+            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+              activeTab === 'analytics'
+                ? 'bg-blue-600 text-white'
+                : 'text-gray-400 hover:text-white hover:bg-gray-700'
+            }`}
+          >
+            <TrendingUp className="w-4 h-4 inline mr-2" />
+            Analytics
+          </button>
+          <button
+            onClick={() => setActiveTab('users')}
+            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+              activeTab === 'users'
+                ? 'bg-blue-600 text-white'
+                : 'text-gray-400 hover:text-white hover:bg-gray-700'
+            }`}
+          >
+            <Users className="w-4 h-4 inline mr-2" />
+            Users
+          </button>
+        </div>
+
+            {/* Recent Quiz Attempts */}
+            <div>
+              <h3 className="text-xl font-semibold text-white mb-6 flex items-center">
+                <BarChart3 className="w-6 h-6 mr-2 text-purple-400" />
+                Recent Quiz Attempts
+              </h3>
+              
+              <div className="space-y-3">
+                {recentAttempts.map((attempt) => {
+                  const percentage = Math.round((attempt.score / attempt.total_questions) * 100);
+                  
+                  return (
+                    <motion.div
+                      key={attempt.id}
+                      whileHover={{ scale: 1.01 }}
+                      onClick={() => onViewResults(attempt)}
+                      className="bg-gray-800 rounded-lg p-4 border border-gray-700 hover:border-gray-600 transition-all cursor-pointer"
+                    >
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <h4 className="text-white font-medium">{attempt.quiz.title}</h4>
+                          <p className="text-gray-400 text-sm">
+                            {attempt.user.username} • {attempt.score}/{attempt.total_questions} correct
+                          </p>
+                          <p className="text-gray-500 text-xs">
+                            {new Date(attempt.completed_at).toLocaleDateString()}
+                          </p>
+                        </div>
+                        <div className={`px-3 py-1 rounded-full text-sm font-medium ${
+                          percentage >= 80 ? 'bg-green-900 text-green-300' :
+                          percentage >= 60 ? 'bg-yellow-900 text-yellow-300' :
+                          'bg-red-900 text-red-300'
+                        }`}>
+                          {percentage}%
+                        </div>
+                      </div>
+                    </motion.div>
+                  );
+                })}
+              </div>
+            </div>
+          </>
+        )}
+
+        {/* Users Tab */}
+        {activeTab === 'users' && (
+          <>
+        {activeTab === 'analytics' && <EnhancedAnalytics />}
+
+        {/* Overview Tab */}
+        {activeTab === 'overview' && (
+          <>
         <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
       </div>
     );
@@ -445,47 +535,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                       <div className="text-sm text-gray-300">{user.email}</div>
                     </td>
                     {showCredentials && (
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="flex items-center space-x-2">
-                          <div className="text-sm text-gray-300 font-mono">
-                            {visiblePasswords.has(user.id) 
-                              ? decodePassword(user.password_hash || '') 
-                              : '••••••••'
-                            }
-                          </div>
-                          <button
-                            onClick={() => togglePasswordVisibility(user.id)}
-                            className="text-gray-400 hover:text-white transition-colors"
-                          >
-                            {visiblePasswords.has(user.id) ? (
-                              <EyeOff className="w-4 h-4" />
-                            ) : (
-                              <Eye className="w-4 h-4" />
-                            )}
-                          </button>
-                        </div>
-                      </td>
-                    )}
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-300">
-                        {new Date(user.created_at).toLocaleDateString()}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <button
-                        onClick={() => downloadUserReport(user.id, user.username)}
-                        className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded text-sm flex items-center space-x-1 transition-colors"
-                      >
-                        <Download className="w-4 h-4" />
-                        <span>Report</span>
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
+          </>
+        )}
       </div>
 
       {/* Credentials Helper Section */}

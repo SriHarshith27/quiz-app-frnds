@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Play, Trophy, Clock, Target, TrendingUp, CheckCircle, XCircle, Users } from 'lucide-react';
+import { Play, Trophy, Clock, Target, TrendingUp, CheckCircle, XCircle, Users, Search, Heart } from 'lucide-react';
 import { Quiz, QuizAttempt, UserProgress, UserAnswer } from '../types';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
+import { QuizSearch } from './QuizSearch';
+import { QuizPreview } from './QuizPreview';
 
 interface QuizWithCount extends Quiz {
   questionCount: number;
@@ -20,6 +22,9 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({
 }) => {
   const { user } = useAuth();
   const [quizzes, setQuizzes] = useState<QuizWithCount[]>([]);
+  const [filteredQuizzes, setFilteredQuizzes] = useState<QuizWithCount[]>([]);
+  const [selectedQuiz, setSelectedQuiz] = useState<Quiz | null>(null);
+  const [showPreview, setShowPreview] = useState(false);
   const [userProgress, setUserProgress] = useState<UserProgress | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -84,6 +89,23 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({
     }
   };
 
+  const handleQuizClick = (quiz: Quiz) => {
+    setSelectedQuiz(quiz);
+    setShowPreview(true);
+  };
+
+  const handleStartQuiz = () => {
+    if (selectedQuiz) {
+      setShowPreview(false);
+      onTakeQuiz(selectedQuiz);
+    }
+  };
+
+  const handleBackFromPreview = () => {
+    setShowPreview(false);
+    setSelectedQuiz(null);
+  };
+
   const calculateUserProgress = (attempts: QuizAttempt[]) => {
     if (attempts.length === 0) {
       setUserProgress({
@@ -143,6 +165,16 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({
       recentAttempts: attempts.slice(0, 5)
     });
   };
+
+  if (showPreview && selectedQuiz) {
+    return (
+      <QuizPreview
+        quiz={selectedQuiz}
+        onBack={handleBackFromPreview}
+        onStartQuiz={handleStartQuiz}
+      />
+    );
+  }
 
   if (loading) {
     return (
@@ -225,22 +257,52 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({
           Available Quizzes
         </h3>
         
-        {quizzes.length === 0 ? (
+        {/* Search and Filter */}
+        <div className="mb-6">
+          <QuizSearch 
+            quizzes={quizzes} 
+            onFilteredQuizzes={setFilteredQuizzes}
+          />
+        </div>
+        
+        {filteredQuizzes.length === 0 ? (
           <div className="bg-gray-800 rounded-xl p-8 text-center border border-gray-700">
-            <Trophy className="w-12 h-12 text-gray-500 mx-auto mb-4" />
-            <p className="text-gray-400 mb-4">No quizzes available yet</p>
-            <p className="text-gray-500 text-sm">Check back later for new quizzes!</p>
+            {quizzes.length === 0 ? (
+              <>
+                <Trophy className="w-12 h-12 text-gray-500 mx-auto mb-4" />
+                <p className="text-gray-400 mb-4">No quizzes available yet</p>
+                <p className="text-gray-500 text-sm">Check back later for new quizzes!</p>
+              </>
+            ) : (
+              <>
+                <Search className="w-12 h-12 text-gray-500 mx-auto mb-4" />
+                <p className="text-gray-400 mb-4">No quizzes match your search</p>
+                <p className="text-gray-500 text-sm">Try adjusting your filters or search terms</p>
+              </>
+            )}
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {quizzes.map((quiz) => (
+            {filteredQuizzes.map((quiz) => (
               <motion.div
                 key={quiz.id}
                 whileHover={{ scale: 1.02 }}
-                className="bg-gray-800 rounded-xl p-6 border border-gray-700 hover:border-gray-600 transition-all"
+                onClick={() => handleQuizClick(quiz)}
+                className="bg-gray-800 rounded-xl p-6 border border-gray-700 hover:border-gray-600 transition-all cursor-pointer"
               >
                 <div className="mb-4">
+                  <div className="flex items-start justify-between mb-2">
                   <h4 className="text-lg font-semibold text-white mb-2">{quiz.title}</h4>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        // Toggle favorite functionality
+                      }}
+                      className="text-gray-400 hover:text-red-400 transition-colors"
+                    >
+                      <Heart className="w-4 h-4" />
+                    </button>
+                  </div>
                   <p className="text-gray-400 text-sm mb-3 line-clamp-2">{quiz.description}</p>
                   <div className="flex items-center text-xs text-gray-500 space-x-4">
                     <span className="bg-gray-700 px-2 py-1 rounded">{quiz.category}</span>
@@ -267,7 +329,10 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({
                   
                   return (
                     <button
-                      onClick={() => onTakeQuiz(quiz)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onTakeQuiz(quiz);
+                      }}
                       disabled={!canAttempt}
                       className={`w-full py-2 px-4 rounded-lg transition-colors flex items-center justify-center space-x-2 ${
                         !canAttempt
