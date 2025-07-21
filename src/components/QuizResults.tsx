@@ -234,21 +234,21 @@ export const QuizResults: React.FC<QuizResultsProps> = ({ attemptId, onBack }) =
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
+    <div className="space-y-4 sm:space-y-6">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <button
           onClick={onBack}
-          className="flex items-center space-x-2 text-gray-400 hover:text-white transition-colors"
+          className="flex items-center space-x-2 text-gray-400 hover:text-white transition-colors px-3 py-2 touch-target"
         >
           <ArrowLeft className="w-5 h-5" />
-          <span>Back to Dashboard</span>
+          <span className="text-sm sm:text-base">Back to Dashboard</span>
         </button>
         
-        <div className="flex space-x-3">
+        <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-3 w-full sm:w-auto">
           {incorrectAnswers.length > 0 && (
             <button
               onClick={() => setShowLearningPlan(true)}
-              className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white px-4 py-2 rounded-lg flex items-center space-x-2 transition-all duration-200 transform hover:scale-105"
+              className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white px-4 py-3 rounded-lg flex items-center justify-center space-x-2 transition-all duration-200 transform hover:scale-105 min-h-[44px] touch-target text-sm sm:text-base"
             >
               <Sparkles className="w-4 h-4" />
               <span>Generate My Learning Plan</span>
@@ -257,7 +257,7 @@ export const QuizResults: React.FC<QuizResultsProps> = ({ attemptId, onBack }) =
           
           <button
             onClick={() => setShowDetailedAnswers(!showDetailedAnswers)}
-            className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center space-x-2 transition-colors"
+            className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-3 rounded-lg flex items-center justify-center space-x-2 transition-colors min-h-[44px] touch-target text-sm sm:text-base"
           >
             {showDetailedAnswers ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
             <span>{showDetailedAnswers ? 'Hide' : 'Show'} Detailed Answers</span>
@@ -265,7 +265,7 @@ export const QuizResults: React.FC<QuizResultsProps> = ({ attemptId, onBack }) =
           
           <button
             onClick={generateReport}
-            className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg flex items-center space-x-2 transition-colors"
+            className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-3 rounded-lg flex items-center justify-center space-x-2 transition-colors min-h-[44px] touch-target text-sm sm:text-base"
           >
             <Download className="w-4 h-4" />
             <span>Download Report</span>
@@ -277,16 +277,16 @@ export const QuizResults: React.FC<QuizResultsProps> = ({ attemptId, onBack }) =
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="bg-gray-800 rounded-xl p-8 border border-gray-700 text-center"
+        className="bg-gray-800 rounded-xl p-6 sm:p-8 border border-gray-700 text-center"
       >
-        <Trophy className={`w-16 h-16 mx-auto mb-4 ${
+        <Trophy className={`w-12 h-12 sm:w-16 sm:h-16 mx-auto mb-4 ${
           percentage >= 80 ? 'text-yellow-500' :
           percentage >= 60 ? 'text-blue-500' :
           'text-gray-500'
         }`} />
         
-        <h2 className="text-3xl font-bold text-white mb-2">{quiz.title}</h2>
-        <div className="text-6xl font-bold mb-4">
+        <h2 className="text-xl sm:text-2xl lg:text-3xl font-bold text-white mb-2">{quiz.title}</h2>
+        <div className="text-4xl sm:text-5xl lg:text-6xl font-bold mb-4">
           <span className={
             percentage >= 80 ? 'text-green-400' :
             percentage >= 60 ? 'text-yellow-400' :
@@ -296,11 +296,11 @@ export const QuizResults: React.FC<QuizResultsProps> = ({ attemptId, onBack }) =
           </span>
         </div>
         
-        <p className="text-xl text-gray-300 mb-2">
+        <p className="text-lg sm:text-xl text-gray-300 mb-2">
           {attempt.score} out of {attempt.total_questions} correct
         </p>
         
-        <p className="text-gray-400">
+        <p className="text-sm sm:text-base text-gray-400">
           Completed in {Math.floor(attempt.time_taken / 60)}:{String(attempt.time_taken % 60).padStart(2, '0')}
         </p>
       </motion.div>
@@ -311,10 +311,10 @@ export const QuizResults: React.FC<QuizResultsProps> = ({ attemptId, onBack }) =
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
-          className="bg-gray-800 rounded-xl p-6 border border-gray-700"
+          className="bg-gray-800 rounded-xl p-4 sm:p-6 border border-gray-700"
         >
-          <h3 className="text-xl font-semibold text-white mb-6 flex items-center">
-            <Eye className="w-6 h-6 mr-2 text-blue-400" />
+          <h3 className="text-lg sm:text-xl font-semibold text-white mb-4 sm:mb-6 flex items-center">
+            <Eye className="w-5 h-5 sm:w-6 sm:h-6 mr-2 text-blue-400" />
             Detailed Answer Review
           </h3>
           

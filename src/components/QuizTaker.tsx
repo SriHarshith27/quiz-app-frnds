@@ -259,22 +259,22 @@ export const QuizTaker: React.FC<QuizTakerProps> = ({ quiz, onBack, onComplete, 
   if (showReview) {
     return (
       <div className="min-h-screen bg-gray-900">
-        <div className="max-w-4xl mx-auto px-6 py-8">
-          <div className="flex items-center justify-between mb-8">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-6 sm:mb-8 gap-4">
             <button
               onClick={() => setShowReview(false)}
-              className="flex items-center space-x-2 text-gray-400 hover:text-white transition-colors"
+              className="flex items-center space-x-2 text-gray-400 hover:text-white transition-colors px-3 py-2 touch-target"
             >
               <ArrowLeft className="w-5 h-5" />
-              <span>Back to Quiz</span>
+              <span className="text-sm sm:text-base">Back to Quiz</span>
             </button>
             
             <button
               onClick={handleSubmit}
-              className="bg-green-600 hover:bg-green-700 text-white px-8 py-3 rounded-lg flex items-center space-x-2 transition-colors font-medium"
+              className="bg-green-600 hover:bg-green-700 text-white px-6 sm:px-8 py-3 rounded-lg flex items-center space-x-2 transition-colors font-medium min-h-[44px] touch-target w-full sm:w-auto justify-center"
             >
               <CheckCircle className="w-5 h-5" />
-              <span>Submit Quiz</span>
+              <span className="text-sm sm:text-base">Submit Quiz</span>
             </button>
           </div>
 
@@ -341,19 +341,19 @@ export const QuizTaker: React.FC<QuizTakerProps> = ({ quiz, onBack, onComplete, 
 
   return (
     <div className="min-h-screen bg-gray-900">
-      <div className="max-w-4xl mx-auto px-6 py-8">
-        <div className="flex items-center justify-between mb-8">
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-6 sm:mb-8 gap-4">
           <button
             onClick={onBack}
-            className="flex items-center space-x-2 text-gray-400 hover:text-white transition-colors"
+            className="flex items-center space-x-2 text-gray-400 hover:text-white transition-colors px-3 py-2 touch-target"
           >
             <ArrowLeft className="w-5 h-5" />
-            <span>Exit Quiz</span>
+            <span className="text-sm sm:text-base">Exit Quiz</span>
           </button>
           
           <div className="flex items-center space-x-3">
             <Clock className="w-5 h-5 text-gray-400" />
-            <span className={`font-mono text-lg ${
+            <span className={`font-mono text-base sm:text-lg ${
               quiz.time_limit && timeRemaining < 300 ? 'text-red-400' : 'text-gray-300'
             }`}>
               {quiz.time_limit ? (
@@ -388,40 +388,40 @@ export const QuizTaker: React.FC<QuizTakerProps> = ({ quiz, onBack, onComplete, 
             </div>
           )}
 
-          <div className="p-8">
-            <div className="flex items-center justify-between mb-8">
+          <div className="p-4 sm:p-6 lg:p-8">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-6 sm:mb-8 gap-4">
               <div>
-                <h1 className="text-2xl font-bold text-white">{quiz.title}</h1>
-                <p className="text-gray-400 mt-1">{quiz.category}</p>
+                <h1 className="text-lg sm:text-xl lg:text-2xl font-bold text-white">{quiz.title}</h1>
+                <p className="text-gray-400 mt-1 text-sm sm:text-base">{quiz.category}</p>
               </div>
-              <div className="text-right">
+              <div className="text-left sm:text-right">
                 <p className="text-sm text-gray-500">Question</p>
-                <p className="text-2xl font-bold text-white">
+                <p className="text-xl sm:text-2xl font-bold text-white">
                   {currentQuestion + 1}<span className="text-gray-400">/{questions.length}</span>
                 </p>
               </div>
             </div>
 
-            <div className="mb-8">
-              <h2 className="text-xl font-semibold text-white leading-relaxed mb-8">
+            <div className="mb-6 sm:mb-8">
+              <h2 className="text-lg sm:text-xl font-semibold text-white leading-relaxed mb-6 sm:mb-8">
                 {question.question}
               </h2>
               
-              <div className="space-y-4">
+              <div className="space-y-3 sm:space-y-4">
                 {question.options.map((option: string, index: number) => (
                   <motion.button
                     key={index}
                     onClick={() => handleAnswerSelect(index)}
                     whileHover={{ scale: 1.01 }}
                     whileTap={{ scale: 0.99 }}
-                    className={`w-full p-6 text-left rounded-xl border-2 transition-all ${
+                    className={`w-full p-4 sm:p-6 text-left rounded-xl border-2 transition-all min-h-[56px] touch-target ${
                       selectedAnswer === index
                         ? 'border-blue-500 bg-blue-900/30 shadow-lg'
                         : 'border-gray-600 bg-gray-700 hover:border-gray-500 hover:bg-gray-600'
                     }`}
                   >
-                    <div className="flex items-center space-x-4">
-                      <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center ${
+                    <div className="flex items-center space-x-3 sm:space-x-4">
+                      <div className={`w-5 h-5 sm:w-6 sm:h-6 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${
                         selectedAnswer === index
                           ? 'border-blue-500 bg-blue-500'
                           : 'border-gray-400'
@@ -430,7 +430,7 @@ export const QuizTaker: React.FC<QuizTakerProps> = ({ quiz, onBack, onComplete, 
                           <div className="w-2 h-2 bg-white rounded-full" />
                         )}
                       </div>
-                      <span className={`text-lg ${
+                      <span className={`text-base sm:text-lg ${
                         selectedAnswer === index ? 'text-blue-300 font-medium' : 'text-gray-300'
                       }`}>
                         {option}
@@ -441,20 +441,20 @@ export const QuizTaker: React.FC<QuizTakerProps> = ({ quiz, onBack, onComplete, 
               </div>
             </div>
 
-            <div className="flex items-center justify-between pt-6 border-t border-gray-700">
-              <div className="flex space-x-3">
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between pt-6 border-t border-gray-700 gap-4">
+              <div className="flex flex-col sm:flex-row space-y-3 sm:space-y-0 sm:space-x-3">
                 <button
                   onClick={handlePrevious}
                   disabled={currentQuestion === 0}
-                  className="flex items-center space-x-2 px-6 py-3 rounded-lg border border-gray-600 text-gray-300 hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  className="flex items-center justify-center space-x-2 px-4 sm:px-6 py-3 rounded-lg border border-gray-600 text-gray-300 hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors min-h-[44px] touch-target"
                 >
                   <ChevronLeft className="w-4 h-4" />
-                  <span>Previous</span>
+                  <span className="text-sm sm:text-base">Previous</span>
                 </button>
                 
                 <button
                   onClick={() => setShowReview(true)}
-                  className="px-6 py-3 rounded-lg border border-gray-600 text-gray-300 hover:bg-gray-700 transition-colors"
+                  className="px-4 sm:px-6 py-3 rounded-lg border border-gray-600 text-gray-300 hover:bg-gray-700 transition-colors min-h-[44px] touch-target text-sm sm:text-base"
                 >
                   Review All
                 </button>
@@ -463,9 +463,9 @@ export const QuizTaker: React.FC<QuizTakerProps> = ({ quiz, onBack, onComplete, 
               <button
                 onClick={handleNext}
                 disabled={selectedAnswer === null}
-                className="flex items-center space-x-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 disabled:cursor-not-allowed text-white px-8 py-3 rounded-lg transition-colors font-medium"
+                className="flex items-center justify-center space-x-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 disabled:cursor-not-allowed text-white px-6 sm:px-8 py-3 rounded-lg transition-colors font-medium min-h-[44px] touch-target"
               >
-                <span>{currentQuestion === questions.length - 1 ? 'Finish Quiz' : 'Next Question'}</span>
+                <span className="text-sm sm:text-base">{currentQuestion === questions.length - 1 ? 'Finish Quiz' : 'Next Question'}</span>
                 <ChevronRight className="w-4 h-4" />
               </button>
             </div>

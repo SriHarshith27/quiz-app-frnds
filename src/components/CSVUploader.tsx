@@ -164,23 +164,23 @@ export const CSVUploader: React.FC<CSVUploaderProps> = ({ onBack, onSave }) => {
 
   if (step === 'upload') {
     return (
-      <div className="space-y-6">
+      <div className="space-y-4 sm:space-y-6">
         <div className="flex items-center justify-between">
           <button
             onClick={onBack}
-            className="flex items-center space-x-2 text-gray-400 hover:text-white transition-colors"
+            className="flex items-center space-x-2 text-gray-400 hover:text-white transition-colors px-3 py-2 touch-target"
           >
             <ArrowLeft className="w-5 h-5" />
-            <span>Back to Dashboard</span>
+            <span className="text-sm sm:text-base">Back to Dashboard</span>
           </button>
         </div>
 
-        <div className="bg-gray-800 rounded-xl p-8 border border-gray-700">
-          <h3 className="text-2xl font-semibold text-white mb-6 text-center">Upload CSV File</h3>
+        <div className="bg-gray-800 rounded-xl p-4 sm:p-6 lg:p-8 border border-gray-700">
+          <h3 className="text-xl sm:text-2xl font-semibold text-white mb-4 sm:mb-6 text-center">Upload CSV File</h3>
           
-          <div className="mb-6 p-4 bg-blue-900/20 rounded-lg border border-blue-700">
-            <h4 className="text-blue-300 font-medium mb-2">CSV Format Required:</h4>
-            <p className="text-blue-200 text-sm mb-2">
+          <div className="mb-4 sm:mb-6 p-4 bg-blue-900/20 rounded-lg border border-blue-700">
+            <h4 className="text-blue-300 font-medium mb-2 text-sm sm:text-base">CSV Format Required:</h4>
+            <p className="text-blue-200 text-xs sm:text-sm mb-2 break-all">
               Question,Option1,Option2,Option3,Option4,CorrectAnswer,Category
             </p>
             <p className="text-blue-200 text-xs">
@@ -190,14 +190,14 @@ export const CSVUploader: React.FC<CSVUploaderProps> = ({ onBack, onSave }) => {
           
           <div
             {...getRootProps()}
-            className={`border-2 border-dashed rounded-xl p-12 text-center cursor-pointer transition-colors ${
+            className={`border-2 border-dashed rounded-xl p-8 sm:p-12 text-center cursor-pointer transition-colors touch-target ${
               isDragActive
                 ? 'border-blue-500 bg-blue-500/10'
                 : 'border-gray-600 hover:border-gray-500'
             }`}
           >
             <input {...getInputProps()} />
-            <Upload className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+            <Upload className="w-12 h-12 sm:w-16 sm:h-16 text-gray-400 mx-auto mb-4" />
             
             {isDragActive ? (
               <p className="text-blue-400 text-lg">Drop the CSV file here...</p>

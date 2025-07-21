@@ -1,96 +1,35 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Search, Filter, X, Clock, Users, BookOpen, Star, TrendingUp } from 'lucide-react';
-import { Quiz } from '../types';
+import { Search, Filter, X, Clock, BookOpen, Star, TrendingUp } from 'lucide-react';
 
 interface QuizSearchProps {
-  quizzes: Quiz[];
-  onFilteredQuizzes: (filtered: Quiz[]) => void;
+  onSearch: (searchTerm: string, selectedCategory: string, selectedDifficulty: string, sortBy: string) => void;
 }
 
-export const QuizSearch: React.FC<QuizSearchProps> = ({ quizzes, onFilteredQuizzes }) => {
+export const QuizSearch: React.FC<QuizSearchProps> = ({ onSearch }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('');
   const [timeFilter, setTimeFilter] = useState('');
   const [difficultyFilter, setDifficultyFilter] = useState('');
   const [showFilters, setShowFilters] = useState(false);
-  const [sortBy, setSortBy] = useState('newest');
+  const [sortBy, setSortBy] = useState('Newest');
 
-  const categories = [...new Set(quizzes.map(quiz => quiz.category))];
+  const categories = ['Technology', 'History', 'Science', 'Sports', 'Entertainment', 'General'];
 
   useEffect(() => {
-    let filtered = [...quizzes];
-
-    // Search by title and description
-    if (searchTerm) {
-      filtered = filtered.filter(quiz =>
-        quiz.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        quiz.description.toLowerCase().includes(searchTerm.toLowerCase())
-      );
-    }
-
-    // Filter by category
-    if (selectedCategory) {
-      filtered = filtered.filter(quiz => quiz.category === selectedCategory);
-    }
-
-    // Filter by time limit
-    if (timeFilter) {
-      switch (timeFilter) {
-        case 'quick':
-          filtered = filtered.filter(quiz => quiz.time_limit && quiz.time_limit <= 15);
-          break;
-        case 'medium':
-          filtered = filtered.filter(quiz => quiz.time_limit && quiz.time_limit > 15 && quiz.time_limit <= 45);
-          break;
-        case 'long':
-          filtered = filtered.filter(quiz => quiz.time_limit && quiz.time_limit > 45);
-          break;
-        case 'unlimited':
-          filtered = filtered.filter(quiz => !quiz.time_limit);
-          break;
-      }
-    }
-
-    // Filter by difficulty (simulated based on question count and time limit)
-    if (difficultyFilter) {
-      filtered = filtered.filter(quiz => {
-        const questionCount = quiz.questions?.length || 0;
-        const timeLimit = quiz.time_limit || 60;
-        const difficulty = questionCount > 20 || timeLimit < 30 ? 'hard' : 
-                          questionCount > 10 || timeLimit < 60 ? 'medium' : 'easy';
-        return difficulty === difficultyFilter;
-      });
-    }
-
-    // Sort results
-    switch (sortBy) {
-      case 'newest':
-        filtered.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-        break;
-      case 'oldest':
-        filtered.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
-        break;
-      case 'title':
-        filtered.sort((a, b) => a.title.localeCompare(b.title));
-        break;
-      case 'questions':
-        filtered.sort((a, b) => (b.questions?.length || 0) - (a.questions?.length || 0));
-        break;
-    }
-
-    onFilteredQuizzes(filtered);
-  }, [searchTerm, selectedCategory, timeFilter, difficultyFilter, sortBy, quizzes, onFilteredQuizzes]);
+    // Pass the current filter states back to parent
+    onSearch(searchTerm, selectedCategory, difficultyFilter, sortBy);
+  }, [searchTerm, selectedCategory, difficultyFilter, sortBy, onSearch]);
 
   const clearFilters = () => {
     setSearchTerm('');
     setSelectedCategory('');
     setTimeFilter('');
     setDifficultyFilter('');
-    setSortBy('newest');
+    setSortBy('Newest');
   };
 
-  const hasActiveFilters = searchTerm || selectedCategory || timeFilter || difficultyFilter || sortBy !== 'newest';
+  const hasActiveFilters = searchTerm || selectedCategory || timeFilter || difficultyFilter || sortBy !== 'Newest';
 
   return (
     <div className="space-y-4">
@@ -194,7 +133,7 @@ export const QuizSearch: React.FC<QuizSearchProps> = ({ quizzes, onFilteredQuizz
                   <option value="">Any Duration</option>
                   <option value="quick">Quick (≤15 min)</option>
                   <option value="medium">Medium (16-45 min)</option>
-                  <option value="long">Long (>45 min)</option>
+                  <option value="long">Long (&gt;45 min)</option>
                   <option value="unlimited">Unlimited</option>
                 </select>
               </div>
@@ -211,9 +150,9 @@ export const QuizSearch: React.FC<QuizSearchProps> = ({ quizzes, onFilteredQuizz
                   className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
                   <option value="">Any Difficulty</option>
-                  <option value="easy">Easy</option>
-                  <option value="medium">Medium</option>
-                  <option value="hard">Hard</option>
+                  <option value="Easy">Easy</option>
+                  <option value="Medium">Medium</option>
+                  <option value="Hard">Hard</option>
                 </select>
               </div>
 
@@ -228,10 +167,10 @@ export const QuizSearch: React.FC<QuizSearchProps> = ({ quizzes, onFilteredQuizz
                   onChange={(e) => setSortBy(e.target.value)}
                   className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
-                  <option value="newest">Newest First</option>
-                  <option value="oldest">Oldest First</option>
-                  <option value="title">Alphabetical</option>
-                  <option value="questions">Most Questions</option>
+                  <option value="Newest">Newest</option>
+                  <option value="Oldest">Oldest</option>
+                  <option value="Title (A-Z)">Title (A-Z)</option>
+                  <option value="Difficulty (Low to High)">Difficulty (Low to High)</option>
                 </select>
               </div>
             </div>

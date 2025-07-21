@@ -106,6 +106,53 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({
     setSelectedQuiz(null);
   };
 
+  const handleSearch = (searchTerm: string, selectedCategory: string, _selectedDifficulty: string, sortBy: string) => {
+    let filtered = [...quizzes];
+
+    // Apply search term filter
+    if (searchTerm.trim()) {
+      filtered = filtered.filter(quiz => 
+        quiz.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        quiz.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        quiz.category.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+    }
+
+    // Apply category filter
+    if (selectedCategory) {
+      filtered = filtered.filter(quiz => quiz.category === selectedCategory);
+    }
+
+    // Note: difficulty filter is not applied since Quiz interface doesn't have difficulty property
+
+    // Apply sorting
+    filtered.sort((a, b) => {
+      switch (sortBy) {
+        case 'Newest':
+          return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+        case 'Oldest':
+          return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+        case 'A-Z':
+          return a.title.localeCompare(b.title);
+        case 'Z-A':
+          return b.title.localeCompare(a.title);
+        case 'Most Questions':
+          return b.questionCount - a.questionCount;
+        case 'Least Questions':
+          return a.questionCount - b.questionCount;
+        default:
+          return 0;
+      }
+    });
+
+    setFilteredQuizzes(filtered);
+  };
+
+  useEffect(() => {
+    // Initialize filtered quizzes when quizzes change
+    setFilteredQuizzes(quizzes);
+  }, [quizzes]);
+
   const calculateUserProgress = (attempts: QuizAttempt[]) => {
     if (attempts.length === 0) {
       setUserProgress({
@@ -260,8 +307,7 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({
         {/* Search and Filter */}
         <div className="mb-6">
           <QuizSearch 
-            quizzes={quizzes} 
-            onFilteredQuizzes={setFilteredQuizzes}
+            onSearch={handleSearch}
           />
         </div>
         
@@ -282,7 +328,7 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({
             )}
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
             {filteredQuizzes.map((quiz) => (
               <motion.div
                 key={quiz.id}
@@ -292,20 +338,20 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({
               >
                 <div className="mb-4">
                   <div className="flex items-start justify-between mb-2">
-                  <h4 className="text-lg font-semibold text-white mb-2">{quiz.title}</h4>
+                  <h4 className="text-lg sm:text-xl font-semibold text-white mb-2">{quiz.title}</h4>
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
                         // Toggle favorite functionality
                       }}
-                      className="text-gray-400 hover:text-red-400 transition-colors"
+                      className="text-gray-400 hover:text-red-400 transition-colors p-2 touch-target"
                     >
-                      <Heart className="w-4 h-4" />
+                      <Heart className="w-5 h-5" />
                     </button>
                   </div>
-                  <p className="text-gray-400 text-sm mb-3 line-clamp-2">{quiz.description}</p>
-                  <div className="flex items-center text-xs text-gray-500 space-x-4">
-                    <span className="bg-gray-700 px-2 py-1 rounded">{quiz.category}</span>
+                  <p className="text-gray-400 text-sm sm:text-base mb-3 line-clamp-2">{quiz.description}</p>
+                  <div className="flex flex-wrap items-center text-xs sm:text-sm text-gray-500 gap-2">
+                    <span className="bg-gray-700 px-3 py-1.5 rounded-full">{quiz.category}</span>
                     <span>{quiz.questionCount} questions</span>
                     {quiz.time_limit && (
                       <span className="flex items-center">
@@ -334,7 +380,7 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({
                         onTakeQuiz(quiz);
                       }}
                       disabled={!canAttempt}
-                      className={`w-full py-2 px-4 rounded-lg transition-colors flex items-center justify-center space-x-2 ${
+                      className={`w-full py-3 px-4 rounded-lg transition-colors flex items-center justify-center space-x-2 min-h-[44px] touch-target ${
                         !canAttempt
                           ? 'bg-gray-600 text-gray-400 cursor-not-allowed'
                           : hasAttempted 

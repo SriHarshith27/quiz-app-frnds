@@ -150,23 +150,23 @@ export const PersonalizedLearningPlan: React.FC<PersonalizedLearningPlanProps> =
           initial={{ opacity: 0, x: -20 }}
           animate={{ opacity: 1, x: 0 }}
           onClick={onBack}
-          className="flex items-center space-x-2 text-gray-400 hover:text-white transition-colors group"
+          className="flex items-center space-x-2 text-gray-400 hover:text-white transition-colors group px-3 py-2 touch-target"
         >
           <ArrowLeft className="w-5 h-5 group-hover:transform group-hover:-translate-x-1 transition-transform" />
-          <span>Back to Results</span>
+          <span className="text-sm sm:text-base">Back to Results</span>
         </motion.button>
 
         {/* Header */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="text-center py-8"
+          className="text-center py-6 sm:py-8"
         >
-          <div className="w-16 h-16 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center mx-auto mb-4">
-            <BrainCircuit className="w-8 h-8 text-white" />
+          <div className="w-12 h-12 sm:w-16 sm:h-16 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center mx-auto mb-4">
+            <BrainCircuit className="w-6 h-6 sm:w-8 sm:h-8 text-white" />
           </div>
-          <h1 className="text-4xl font-bold text-white mb-2">Personalized Learning Plan</h1>
-          <p className="text-gray-400 text-lg">AI-generated study guide tailored to help you master the concepts you missed</p>
+          <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-white mb-2">Personalized Learning Plan</h1>
+          <p className="text-gray-400 text-base sm:text-lg px-4">AI-generated study guide tailored to help you master the concepts you missed</p>
         </motion.div>
 
         {/* Learning Plan Section */}
@@ -177,19 +177,19 @@ export const PersonalizedLearningPlan: React.FC<PersonalizedLearningPlanProps> =
             transition={{ delay: 0.1 }}
             className="bg-gray-800 rounded-xl border border-gray-700 overflow-hidden"
           >
-            <div className="bg-gradient-to-r from-blue-900/50 to-indigo-900/50 p-6 border-b border-gray-700">
+            <div className="bg-gradient-to-r from-blue-900/50 to-indigo-900/50 p-4 sm:p-6 border-b border-gray-700">
               <div className="flex items-center space-x-3">
-                <div className="w-10 h-10 bg-blue-500/20 rounded-lg flex items-center justify-center">
-                  <BookOpen className="w-5 h-5 text-blue-400" />
+                <div className="w-8 h-8 sm:w-10 sm:h-10 bg-blue-500/20 rounded-lg flex items-center justify-center flex-shrink-0">
+                  <BookOpen className="w-4 h-4 sm:w-5 sm:h-5 text-blue-400" />
                 </div>
                 <div>
-                  <h2 className="text-2xl font-bold text-white">Study Materials</h2>
-                  <p className="text-gray-400">Comprehensive explanations to help you understand the concepts</p>
+                  <h2 className="text-lg sm:text-xl lg:text-2xl font-bold text-white">Study Materials</h2>
+                  <p className="text-gray-400 text-sm sm:text-base">Comprehensive explanations to help you understand the concepts</p>
                 </div>
               </div>
             </div>
             
-            <div className="p-6">
+            <div className="p-4 sm:p-6">
               <div 
                 className="learning-plan-content space-y-6"
                 dangerouslySetInnerHTML={{ __html: learningPlan }}

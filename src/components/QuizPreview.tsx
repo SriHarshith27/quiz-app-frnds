@@ -1,9 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Eye, Clock, Users, Play, ArrowLeft, BookOpen, Star, Heart, Share2 } from 'lucide-react';
-import { Quiz, Question } from '../types';
+import { Eye, Clock, Play, ArrowLeft, BookOpen, Star, Heart, Share2 } from 'lucide-react';
+import { Quiz } from '../types';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
+
+// Interface for preview questions (only fields needed for display)
+interface PreviewQuestion {
+  id: string;
+  question: string;
+  options: string[];
+  category: string;
+}
 
 interface QuizPreviewProps {
   quiz: Quiz;
@@ -13,7 +21,7 @@ interface QuizPreviewProps {
 
 export const QuizPreview: React.FC<QuizPreviewProps> = ({ quiz, onBack, onStartQuiz }) => {
   const { user } = useAuth();
-  const [questions, setQuestions] = useState<Question[]>([]);
+  const [questions, setQuestions] = useState<PreviewQuestion[]>([]);
   const [loading, setLoading] = useState(true);
   const [userAttempts, setUserAttempts] = useState(0);
   const [isFavorited, setIsFavorited] = useState(false);
@@ -21,14 +29,15 @@ export const QuizPreview: React.FC<QuizPreviewProps> = ({ quiz, onBack, onStartQ
 
   useEffect(() => {
     loadQuizDetails();
-  }, [quiz.id]);
+  }, [quiz.id, user?.id]);
 
   const loadQuizDetails = async () => {
     try {
-      // Load questions
+      // Load sample questions for preview - optimized query fetching only needed fields
+      // Fetches: question text, options array, and category for display
       const { data: questionsData } = await supabase
         .from('questions')
-        .select('*')
+        .select('id, question, options, category')
         .eq('quiz_id', quiz.id)
         .limit(3);
 
@@ -50,6 +59,16 @@ export const QuizPreview: React.FC<QuizPreviewProps> = ({ quiz, onBack, onStartQ
           .eq('quiz_id', quiz.id);
         
         setUserAttempts(attempts?.length || 0);
+
+        // Check if the quiz is favorited by the current user
+        const { data: favorite } = await supabase
+          .from('user_favorites')
+          .select('user_id')
+          .eq('user_id', user.id)
+          .eq('quiz_id', quiz.id)
+          .single();
+        
+        setIsFavorited(!!favorite);
       }
     } catch (error) {
       console.error('Error loading quiz details:', error);
@@ -58,9 +77,39 @@ export const QuizPreview: React.FC<QuizPreviewProps> = ({ quiz, onBack, onStartQ
     }
   };
 
-  const handleFavorite = () => {
-    setIsFavorited(!isFavorited);
-    // In a real app, this would save to database
+  const handleFavorite = async () => {
+    if (!user) {
+      alert('Please log in to favorite quizzes');
+      return;
+    }
+
+    try {
+      if (isFavorited) {
+        // If already favorited, remove from favorites
+        const { error } = await supabase
+          .from('user_favorites')
+          .delete()
+          .eq('user_id', user.id)
+          .eq('quiz_id', quiz.id);
+
+        if (error) throw error;
+        setIsFavorited(false);
+      } else {
+        // If not favorited, add to favorites
+        const { error } = await supabase
+          .from('user_favorites')
+          .insert({
+            user_id: user.id,
+            quiz_id: quiz.id
+          });
+
+        if (error) throw error;
+        setIsFavorited(true);
+      }
+    } catch (error) {
+      console.error('Error updating favorite status:', error);
+      alert('Failed to update favorite status. Please try again.');
+    }
   };
 
   const handleShare = async () => {
