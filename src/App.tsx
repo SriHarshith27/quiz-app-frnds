@@ -2,15 +2,13 @@ import React, { useState } from 'react';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { Layout } from './components/Layout';
 import { LoginForm } from './components/LoginForm';
-import { UserDashboard } from './components/UserDashboard';
+import { NewUserDashboard } from './components/NewUserDashboard';
 import { AdminDashboard } from './components/AdminDashboard';
-import { QuizCreator } from './components/QuizCreator';
 import { QuizTaker } from './components/QuizTaker';
 import { QuizResults } from './components/QuizResults';
-import { CSVUploader } from './components/CSVUploader';
 import { Quiz, QuizAttempt } from './types';
 
-type AppState = 'dashboard' | 'create-quiz' | 'take-quiz' | 'upload-csv' | 'view-results';
+type AppState = 'dashboard' | 'take-quiz' | 'view-results';
 
 function AppContent() {
   const { user, loading, isAdmin } = useAuth();
@@ -30,12 +28,10 @@ function AppContent() {
     return <LoginForm />;
   }
 
-  const handleCreateQuiz = () => setCurrentState('create-quiz');
   const handleTakeQuiz = (quiz: Quiz) => {
     setSelectedQuiz(quiz);
     setCurrentState('take-quiz');
   };
-  const handleUploadCSV = () => setCurrentState('upload-csv');
   const handleViewResults = (attempt: QuizAttempt) => {
     setSelectedAttemptId(attempt.id);
     setCurrentState('view-results');
@@ -45,16 +41,16 @@ function AppContent() {
     setSelectedQuiz(null);
     setSelectedAttemptId(null);
   };
-  const handleQuizComplete = (attemptId: string) => {
-    setSelectedAttemptId(attemptId);
-    setCurrentState('view-results');
+  const handleQuizComplete = (attemptId?: string) => {
+    if (attemptId) {
+      setSelectedAttemptId(attemptId);
+      setCurrentState('view-results');
+    }
   };
 
   const getTitle = () => {
     switch (currentState) {
-      case 'create-quiz': return 'Create New Quiz';
       case 'take-quiz': return selectedQuiz?.title || 'Take Quiz';
-      case 'upload-csv': return 'Upload CSV Questions';
       case 'view-results': return 'Quiz Results';
       default: return isAdmin ? 'Admin Dashboard' : 'Dashboard';
     }
@@ -65,13 +61,9 @@ function AppContent() {
       {currentState === 'dashboard' && (
         <>
           {isAdmin ? (
-            <AdminDashboard
-              onCreateQuiz={handleCreateQuiz}
-              onUploadCSV={handleUploadCSV}
-              onViewResults={handleViewResults}
-            />
+            <AdminDashboard />
           ) : (
-            <UserDashboard
+            <NewUserDashboard
               onTakeQuiz={handleTakeQuiz}
               onViewResults={handleViewResults}
             />
@@ -79,25 +71,11 @@ function AppContent() {
         </>
       )}
       
-      {currentState === 'create-quiz' && isAdmin && (
-        <QuizCreator
-          onBack={handleBackToDashboard}
-          onSave={handleBackToDashboard}
-        />
-      )}
-      
       {currentState === 'take-quiz' && selectedQuiz && (
         <QuizTaker
           quiz={selectedQuiz}
           onBack={handleBackToDashboard}
           onComplete={handleQuizComplete}
-        />
-      )}
-      
-      {currentState === 'upload-csv' && isAdmin && (
-        <CSVUploader
-          onBack={handleBackToDashboard}
-          onSave={handleBackToDashboard}
         />
       )}
       

@@ -5,6 +5,7 @@ import { useAuth } from '../contexts/AuthContext';
 
 export const LoginForm: React.FC = () => {
   const [isLogin, setIsLogin] = useState(true);
+  const [showResetPassword, setShowResetPassword] = useState(false);
   const [formData, setFormData] = useState({
     username: '',
     email: '',
@@ -12,7 +13,8 @@ export const LoginForm: React.FC = () => {
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const { login, register } = useAuth();
+  const [successMessage, setSuccessMessage] = useState('');
+  const { login, register, resetPassword } = useAuth();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -21,6 +23,7 @@ export const LoginForm: React.FC = () => {
 
     setLoading(true);
     setError('');
+    setSuccessMessage('');
 
     try {
       if (isLogin) {
@@ -30,6 +33,28 @@ export const LoginForm: React.FC = () => {
       }
     } catch (err: any) {
       setError(err.message || 'An error occurred');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleResetPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!formData.email) {
+      setError('Please enter your email address');
+      return;
+    }
+
+    setLoading(true);
+    setError('');
+    setSuccessMessage('');
+
+    try {
+      const result = await resetPassword(formData.email);
+      setSuccessMessage(result.message);
+      setShowResetPassword(false);
+    } catch (err: any) {
+      setError(err.message || 'Failed to send reset email');
     } finally {
       setLoading(false);
     }
@@ -130,22 +155,75 @@ export const LoginForm: React.FC = () => {
             </motion.div>
           )}
 
-          <motion.button
-            type="submit"
-            disabled={loading}
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.98 }}
-            className="w-full bg-gradient-to-r from-blue-500 to-purple-600 text-white py-3 px-4 rounded-lg font-medium flex items-center justify-center space-x-2 hover:from-blue-600 hover:to-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
-          >
-            {loading ? (
-              <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-            ) : (
-              <>
-                {isLogin ? <ArrowRight className="w-5 h-5" /> : <UserPlus className="w-5 h-5" />}
-                <span>{isLogin ? 'Sign In' : 'Create Account'}</span>
-              </>
-            )}
-          </motion.button>
+          {successMessage && (
+            <motion.div
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="text-green-400 text-sm text-center bg-green-900/20 p-3 rounded-lg"
+            >
+              {successMessage}
+            </motion.div>
+          )}
+
+          {showResetPassword ? (
+            <div className="space-y-4">
+              <div className="text-center text-gray-300">
+                <p className="text-sm">Enter your email to reset your password</p>
+              </div>
+              <div className="flex space-x-2">
+                <button
+                  onClick={handleResetPassword}
+                  disabled={loading || !formData.email}
+                  className="flex-1 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white py-2 px-4 rounded-lg transition-all"
+                >
+                  {loading ? 'Sending...' : 'Send Reset Email'}
+                </button>
+                <button
+                  onClick={() => {
+                    setShowResetPassword(false);
+                    setError('');
+                  }}
+                  className="px-4 py-2 text-gray-400 hover:text-white transition-colors"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          ) : (
+            <>
+              <motion.button
+                type="submit"
+                disabled={loading}
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                className="w-full bg-gradient-to-r from-blue-500 to-purple-600 text-white py-3 px-4 rounded-lg font-medium flex items-center justify-center space-x-2 hover:from-blue-600 hover:to-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+              >
+                {loading ? (
+                  <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                ) : (
+                  <>
+                    {isLogin ? <ArrowRight className="w-5 h-5" /> : <UserPlus className="w-5 h-5" />}
+                    <span>{isLogin ? 'Sign In' : 'Create Account'}</span>
+                  </>
+                )}
+              </motion.button>
+
+              {isLogin && (
+                <div className="text-center">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowResetPassword(true);
+                      setError('');
+                    }}
+                    className="text-sm text-blue-400 hover:text-blue-300 transition-colors"
+                  >
+                    Forgot your password?
+                  </button>
+                </div>
+              )}
+            </>
+          )}
         </form>
 
         <div className="mt-6 text-center">
@@ -153,6 +231,8 @@ export const LoginForm: React.FC = () => {
             onClick={() => {
               setIsLogin(!isLogin);
               setError('');
+              setSuccessMessage('');
+              setShowResetPassword(false);
               setFormData({ username: '', email: '', password: '' });
             }}
             className="text-blue-400 hover:text-blue-300 transition-colors"

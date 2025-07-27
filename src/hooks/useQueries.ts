@@ -11,6 +11,7 @@ export const QUERY_KEYS = {
   userQuizzes: (userId: string) => ['quizzes', 'user', userId] as const,
   quizAttempts: ['quiz-attempts'] as const,
   userAttempts: (userId: string) => ['quiz-attempts', 'user', userId] as const,
+  userQuizAttempts: (userId: string, quizId: string) => ['quiz-attempts', 'user', userId, 'quiz', quizId] as const,
   quizResults: (quizId: string) => ['quiz-attempts', 'quiz', quizId] as const,
   leaderboard: ['leaderboard'] as const,
   analytics: ['analytics'] as const,
@@ -133,6 +134,25 @@ export const useUserAttempts = (userId: string) => {
       return data;
     },
     enabled: !!userId,
+    staleTime: 1 * 60 * 1000, // User attempts change more frequently
+  });
+};
+
+export const useUserQuizAttempts = (userId: string, quizId: string) => {
+  return useQuery({
+    queryKey: QUERY_KEYS.userQuizAttempts(userId, quizId),
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('quiz_attempts')
+        .select('*')
+        .eq('user_id', userId)
+        .eq('quiz_id', quizId)
+        .order('completed_at', { ascending: false });
+      
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!userId && !!quizId,
     staleTime: 1 * 60 * 1000, // User attempts change more frequently
   });
 };
@@ -264,6 +284,7 @@ export const useSubmitQuizAttempt = () => {
     onSuccess: (data) => {
       // Invalidate relevant queries to update UI
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.userAttempts(data.user_id) });
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.userQuizAttempts(data.user_id, data.quiz_id) });
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.quizResults(data.quiz_id) });
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.leaderboard });
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.analytics });

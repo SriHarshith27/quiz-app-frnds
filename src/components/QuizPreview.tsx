@@ -1,9 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { motion } from 'framer-motion';
-import { Eye, Clock, Play, ArrowLeft, BookOpen, Star, Heart, Share2 } from 'lucide-react';
+import { Eye, Clock, Play, ArrowLeft, BookOpen, Star, Heart, Share2, AlertCircle } from 'lucide-react';
 import { Quiz } from '../types';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
+import { useUserQuizAttempts } from '../hooks/useQueries';
 
 // Interface for preview questions (only fields needed for display)
 interface PreviewQuestion {
@@ -23,9 +24,22 @@ export const QuizPreview: React.FC<QuizPreviewProps> = ({ quiz, onBack, onStartQ
   const { user } = useAuth();
   const [questions, setQuestions] = useState<PreviewQuestion[]>([]);
   const [loading, setLoading] = useState(true);
-  const [userAttempts, setUserAttempts] = useState(0);
   const [isFavorited, setIsFavorited] = useState(false);
   const [difficulty, setDifficulty] = useState<'Easy' | 'Medium' | 'Hard'>('Medium');
+
+  // Use React Query to fetch user attempts for this specific quiz
+  const { data: userAttempts = [], isLoading: attemptsLoading } = useUserQuizAttempts(
+    user?.id || '', 
+    quiz.id
+  );
+
+  // Calculate if user has reached the attempt limit
+  const hasReachedAttemptLimit = useMemo(() => {
+    if (!quiz.max_attempts || quiz.max_attempts === 0) return false;
+    return userAttempts.length >= quiz.max_attempts;
+  }, [userAttempts.length, quiz.max_attempts]);
+
+  const attemptCount = userAttempts.length;
 
   useEffect(() => {
     loadQuizDetails();
@@ -50,17 +64,8 @@ export const QuizPreview: React.FC<QuizPreviewProps> = ({ quiz, onBack, onStartQ
         else setDifficulty('Easy');
       }
 
-      // Load user attempts if logged in
+      // Check if the quiz is favorited by the current user
       if (user) {
-        const { data: attempts } = await supabase
-          .from('quiz_attempts')
-          .select('id')
-          .eq('user_id', user.id)
-          .eq('quiz_id', quiz.id);
-        
-        setUserAttempts(attempts?.length || 0);
-
-        // Check if the quiz is favorited by the current user
         const { data: favorite } = await supabase
           .from('user_favorites')
           .select('user_id')
@@ -212,14 +217,32 @@ export const QuizPreview: React.FC<QuizPreviewProps> = ({ quiz, onBack, onStartQ
               </div>
             </div>
             
-            {/* Mobile-optimized Start Button */}
-            <button
-              onClick={onStartQuiz}
-              className="w-full lg:w-auto bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white px-6 sm:px-8 py-3 sm:py-4 rounded-xl flex items-center justify-center space-x-3 transition-all transform hover:scale-105 shadow-lg touch-target"
-            >
-              <Play className="w-5 sm:w-6 h-5 sm:h-6" />
-              <span className="text-base sm:text-lg font-semibold">Start Quiz</span>
-            </button>
+            {/* Mobile-optimized Start Button with Attempt Limit Validation */}
+            {hasReachedAttemptLimit ? (
+              <div className="w-full lg:w-auto">
+                <button
+                  disabled
+                  className="w-full bg-gray-600 text-gray-400 px-6 sm:px-8 py-3 sm:py-4 rounded-xl flex items-center justify-center space-x-3 cursor-not-allowed opacity-75"
+                >
+                  <AlertCircle className="w-5 sm:w-6 h-5 sm:h-6" />
+                  <span className="text-base sm:text-lg font-semibold">Attempt Limit Reached</span>
+                </button>
+                <p className="text-red-400 text-sm mt-2 text-center">
+                  You have reached the maximum number of attempts ({quiz.max_attempts}) for this quiz.
+                </p>
+              </div>
+            ) : (
+              <button
+                onClick={onStartQuiz}
+                disabled={attemptsLoading}
+                className="w-full lg:w-auto bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 disabled:from-gray-600 disabled:to-gray-600 disabled:cursor-not-allowed text-white px-6 sm:px-8 py-3 sm:py-4 rounded-xl flex items-center justify-center space-x-3 transition-all transform hover:scale-105 disabled:hover:scale-100 shadow-lg touch-target"
+              >
+                <Play className="w-5 sm:w-6 h-5 sm:h-6" />
+                <span className="text-base sm:text-lg font-semibold">
+                  {attemptsLoading ? 'Loading...' : 'Start Quiz'}
+                </span>
+              </button>
+            )}
           </div>
 
           {/* Quiz Stats - Mobile Grid */}
@@ -235,8 +258,10 @@ export const QuizPreview: React.FC<QuizPreviewProps> = ({ quiz, onBack, onStartQ
               <p className="text-gray-400 text-xs sm:text-sm">Time Limit</p>
             </div>
             <div className="text-center col-span-2 sm:col-span-1">
-              <p className="text-xl sm:text-2xl font-bold text-purple-400">
-                {userAttempts}/{quiz.max_attempts || '∞'}
+              <p className={`text-xl sm:text-2xl font-bold ${
+                hasReachedAttemptLimit ? 'text-red-400' : 'text-purple-400'
+              }`}>
+                {attemptCount}/{quiz.max_attempts || '∞'}
               </p>
               <p className="text-gray-400 text-xs sm:text-sm">Attempts</p>
             </div>
