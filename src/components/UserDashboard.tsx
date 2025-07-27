@@ -2,8 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Play, Trophy, Clock, Target, TrendingUp, CheckCircle, XCircle, Users, Search, Heart } from 'lucide-react';
 import { Quiz, QuizAttempt, UserProgress, UserAnswer } from '../types';
-import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
+import { useQuizzes, useUserAttempts } from '../hooks/useQueries';
 import { QuizSearch } from './QuizSearch';
 import { QuizPreview } from './QuizPreview';
 
@@ -21,73 +21,43 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({
   onViewResults,
 }) => {
   const { user } = useAuth();
-  const [quizzes, setQuizzes] = useState<QuizWithCount[]>([]);
   const [filteredQuizzes, setFilteredQuizzes] = useState<QuizWithCount[]>([]);
   const [selectedQuiz, setSelectedQuiz] = useState<Quiz | null>(null);
   const [showPreview, setShowPreview] = useState(false);
   const [userProgress, setUserProgress] = useState<UserProgress | null>(null);
-  const [loading, setLoading] = useState(true);
 
+  // Use React Query hooks for data fetching
+  const { data: quizzes, isLoading: quizzesLoading } = useQuizzes();
+  const { data: userAttempts, isLoading: attemptsLoading } = useUserAttempts(user?.id || '');
+
+  // Combine loading states
+  const loading = quizzesLoading || attemptsLoading;
+
+  // Process data when it's loaded
   useEffect(() => {
-    loadUserData();
-  }, [user]);
-
-  const loadUserData = async () => {
-    if (!user) return;
-
-    try {
-      // Set user context for RLS
-      await supabase.rpc('set_config', {
-        setting_name: 'app.current_user',
-        setting_value: user.username
-      });
-
-      // Load available quizzes with question counts and attempt counts
-      const { data: quizzesData } = await supabase
-        .from('quizzes')
-        .select(`
-          *,
-          questions(count)
-        `)
-        .order('created_at', { ascending: false });
-
-      // Load user's quiz attempts
-      const { data: attemptsData } = await supabase
-        .from('quiz_attempts')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('completed_at', { ascending: false });
-
-      if (quizzesData) {
-        const now = new Date();
-        const filteredQuizzes = quizzesData
-          .filter(quiz => {
-            const quizStartTime = quiz.start_time ? new Date(quiz.start_time) : null;
-
-            // Quiz is available if:
-            // 1. No start_time is set (immediately available)
-            // OR
-            // 2. Current time is on or after start_time
-            const isAvailableByStartTime = !quizStartTime || now >= quizStartTime;
-
-            return isAvailableByStartTime;
-          })
-          .map(quiz => ({
-            ...quiz,
-            questionCount: quiz.questions?.[0]?.count || 0
-          }));
-        setQuizzes(filteredQuizzes);
-      }
-
-      if (attemptsData) {
-        calculateUserProgress(attemptsData);
-      }
-    } catch (error) {
-      console.error('Error loading user data:', error);
-    } finally {
-      setLoading(false);
+    if (quizzes && user) {
+      const now = new Date();
+      const processedQuizzes = quizzes
+        .filter((quiz: any) => {
+          const quizStartTime = quiz.start_time ? new Date(quiz.start_time) : null;
+          const isAvailableByStartTime = !quizStartTime || now >= quizStartTime;
+          return isAvailableByStartTime;
+        })
+        .map((quiz: any) => ({
+          ...quiz,
+          questionCount: quiz.questions?.[0]?.count || 0
+        }));
+      
+      setFilteredQuizzes(processedQuizzes);
     }
-  };
+  }, [quizzes, user]);
+
+  // Calculate user progress when attempts data changes
+  useEffect(() => {
+    if (userAttempts) {
+      calculateUserProgress(userAttempts);
+    }
+  }, [userAttempts]);
 
   const handleQuizClick = (quiz: Quiz) => {
     setSelectedQuiz(quiz);
@@ -107,6 +77,8 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({
   };
 
   const handleSearch = (searchTerm: string, selectedCategory: string, _selectedDifficulty: string, sortBy: string) => {
+    if (!quizzes) return;
+    
     let filtered = [...quizzes];
 
     // Apply search term filter
@@ -150,7 +122,9 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({
 
   useEffect(() => {
     // Initialize filtered quizzes when quizzes change
-    setFilteredQuizzes(quizzes);
+    if (quizzes) {
+      setFilteredQuizzes(quizzes);
+    }
   }, [quizzes]);
 
   const calculateUserProgress = (attempts: QuizAttempt[]) => {
@@ -313,7 +287,7 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({
         
         {filteredQuizzes.length === 0 ? (
           <div className="bg-gray-800 rounded-xl p-8 text-center border border-gray-700">
-            {quizzes.length === 0 ? (
+            {(quizzes?.length || 0) === 0 ? (
               <>
                 <Trophy className="w-12 h-12 text-gray-500 mx-auto mb-4" />
                 <p className="text-gray-400 mb-4">No quizzes available yet</p>
@@ -417,7 +391,7 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({
           <div className="space-y-3">
             {userProgress.recentAttempts.map((attempt) => {
               const percentage = Math.round((attempt.score / attempt.total_questions) * 100);
-              const quiz = quizzes.find(q => q.id === attempt.quiz_id);
+              const quiz = quizzes?.find(q => q.id === attempt.quiz_id);
               
               return (
                 <motion.div

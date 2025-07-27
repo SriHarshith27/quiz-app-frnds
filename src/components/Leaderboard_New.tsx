@@ -1,7 +1,33 @@
 import React, { useState, useMemo } from 'react';
 import { motion } from 'framer-motion';
-import { Medal, Award, Crown, Target, Clock, BookOpen, TrendingUp, Filter, Users } from 'lucide-react';
+import { Trophy, Medal, Award, Crown, Target, Clock, BookOpen, TrendingUp, Filter, Users } from 'lucide-react';
 import { useLeaderboard, useQuizzes, useUsers } from '../hooks/useQueries';
+import { User, QuizAttempt, Quiz } from '../types';
+
+interface LeaderboardEntry {
+  user: User;
+  totalQuizzes: number;
+  totalScore: number;
+  totalQuestions: number;
+  averageScore: number;
+  averagePercentage: number;
+  bestScore: number;
+  bestPercentage: number;
+  totalTimeSpent: number;
+  averageTime: number;
+  recentActivity: string;
+  rank: number;
+}
+
+interface QuizLeaderboard {
+  quiz: Quiz;
+  topPerformers: {
+    user: User;
+    attempt: QuizAttempt;
+    percentage: number;
+    rank: number;
+  }[];
+}
 
 export const Leaderboard: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'overall' | 'quiz-specific'>('overall');
@@ -64,6 +90,20 @@ export const Leaderboard: React.FC = () => {
       };
     });
   }, [quizzes, leaderboardData, users]);
+
+  const getTimeFilterDate = () => {
+    const now = new Date();
+    switch (timeFilter) {
+      case 'this-week':
+        const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+        return weekAgo.toISOString();
+      case 'this-month':
+        const monthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+        return monthAgo.toISOString();
+      default:
+        return null;
+    }
+  };
 
   const getRankIcon = (rank: number) => {
     switch (rank) {

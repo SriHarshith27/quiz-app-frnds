@@ -6,7 +6,7 @@ interface AuthContextType {
   user: User | null;
   login: (email: string, password: string) => Promise<void>;
   register: (username: string, email: string, password: string) => Promise<void>;
-  logout: () => void;
+  logout: () => Promise<void>;
   loading: boolean;
   isAdmin: boolean;
 }
@@ -21,63 +21,82 @@ export const useAuth = () => {
   return context;
 };
 
-// Simple password hashing (use bcrypt in production)
-const hashPassword = (password: string): string => {
-  return btoa(password); // Base64 encoding - replace with proper hashing
-};
-
-const verifyPassword = (password: string, hash: string): boolean => {
-  return btoa(password) === hash;
-};
-
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Check if user is stored in localStorage
-    const storedUser = localStorage.getItem('quiz_user');
-    if (storedUser) {
-      const userData = JSON.parse(storedUser);
-      setUser(userData);
-      // Set current user for RLS
-      supabase.rpc('set_config', {
-        setting_name: 'app.current_user',
-        setting_value: userData.username
-      });
-    }
-    setLoading(false);
+    // Get initial session
+    const getInitialSession = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (session?.user) {
+        // Get user profile from database
+        const { data: profile } = await supabase
+          .from('users')
+          .select('*')
+          .eq('id', session.user.id)
+          .single();
+        
+        if (profile) {
+          setUser(profile);
+        }
+      }
+      
+      setLoading(false);
+    };
+
+    getInitialSession();
+
+    // Listen for auth changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_, session) => {
+      if (session?.user) {
+        // Get user profile from database
+        const { data: profile } = await supabase
+          .from('users')
+          .select('*')
+          .eq('id', session.user.id)
+          .single();
+        
+        if (profile) {
+          setUser(profile);
+        }
+      } else {
+        setUser(null);
+      }
+      setLoading(false);
+    });
+
+    return () => subscription.unsubscribe();
   }, []);
 
   const login = async (email: string, password: string) => {
     try {
-      const { data: userData, error } = await supabase
-        .from('users')
-        .select('*')
-        .eq('email', email)
-        .single();
-
-      if (error || !userData) {
-        throw new Error('Invalid email or password');
-      }
-
-      if (!verifyPassword(password, userData.password_hash)) {
-        throw new Error('Invalid email or password');
-      }
-
-      setUser(userData);
-      localStorage.setItem('quiz_user', JSON.stringify(userData));
-      
-      // Set current user for RLS
-      await supabase.rpc('set_config', {
-        setting_name: 'app.current_user',
-        setting_value: userData.username
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
       });
 
-      // Also set user context in auth header for better RLS support
-      supabase.auth.onAuthStateChange((event, session) => {
-        // This helps with RLS policies
-      });
+      if (error) {
+        throw error;
+      }
+
+      if (data.user) {
+        // Get user profile from database
+        const { data: profile, error: profileError } = await supabase
+          .from('users')
+          .select('*')
+          .eq('id', data.user.id)
+          .single();
+
+        if (profileError) {
+          throw profileError;
+        }
+
+        if (profile) {
+          setUser(profile);
+        }
+      }
     } catch (error) {
       console.error('Login error:', error);
       throw error;
@@ -86,49 +105,51 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const register = async (username: string, email: string, password: string) => {
     try {
-      // Check if user already exists
-      const { data: existingUser } = await supabase
-        .from('users')
-        .select('id')
-        .or(`username.eq.${username},email.eq.${email}`)
-        .single();
+      // First, sign up with Supabase auth
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: {
+            username: username,
+          },
+        },
+      });
 
-      if (existingUser) {
-        throw new Error('Username or email already exists');
+      if (error) {
+        throw error;
       }
 
-      const hashedPassword = hashPassword(password);
+      if (data.user) {
+        // Create user profile in the users table
+        const { data: profile, error: profileError } = await supabase
+          .from('users')
+          .insert([{
+            id: data.user.id,
+            username,
+            email,
+            role: 'user'
+          }])
+          .select()
+          .single();
 
-      const { data: newUser, error } = await supabase
-        .from('users')
-        .insert([{
-          username,
-          email,
-          password_hash: hashedPassword,
-          role: 'user'
-        }])
-        .select()
-        .single();
+        if (profileError) {
+          throw profileError;
+        }
 
-      if (error) throw error;
-
-      setUser(newUser);
-      localStorage.setItem('quiz_user', JSON.stringify(newUser));
-      
-      // Set current user for RLS
-      await supabase.rpc('set_config', {
-        setting_name: 'app.current_user',
-        setting_value: newUser.username
-      });
+        if (profile) {
+          setUser(profile);
+        }
+      }
     } catch (error) {
       console.error('Registration error:', error);
       throw error;
     }
   };
 
-  const logout = () => {
+  const logout = async () => {
+    await supabase.auth.signOut();
     setUser(null);
-    localStorage.removeItem('quiz_user');
   };
 
   const isAdmin = user?.role === 'admin';

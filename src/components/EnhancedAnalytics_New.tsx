@@ -1,8 +1,37 @@
 import React, { useState, useMemo } from 'react';
 import { motion } from 'framer-motion';
-import { BarChart3, TrendingUp, Users, Target, Award, Activity } from 'lucide-react';
+import { BarChart3, TrendingUp, Users, Clock, Target, Award, Activity } from 'lucide-react';
 import { useAnalytics } from '../hooks/useQueries';
 import { useAuth } from '../contexts/AuthContext';
+
+interface AnalyticsData {
+  totalQuizzes: number;
+  totalUsers: number;
+  totalAttempts: number;
+  averageScore: number;
+  popularQuizzes: Array<{
+    id: string;
+    title: string;
+    attempts: number;
+    averageScore: number;
+  }>;
+  userEngagement: Array<{
+    date: string;
+    attempts: number;
+    users: number;
+  }>;
+  categoryPerformance: Array<{
+    category: string;
+    attempts: number;
+    averageScore: number;
+  }>;
+  recentActivity: Array<{
+    id: string;
+    type: 'quiz_created' | 'quiz_attempted' | 'user_registered';
+    description: string;
+    timestamp: string;
+  }>;
+}
 
 export const EnhancedAnalytics: React.FC = () => {
   const { isAdmin } = useAuth();

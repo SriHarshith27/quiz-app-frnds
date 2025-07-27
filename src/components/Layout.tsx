@@ -11,6 +11,14 @@ interface LayoutProps {
 export const Layout: React.FC<LayoutProps> = ({ children, title }) => {
   const { user, logout } = useAuth();
 
+  const handleLogout = async () => {
+    try {
+      await logout();
+    } catch (error) {
+      console.error('Logout error:', error);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gray-900 text-white">
       <header className="bg-gray-800 border-b border-gray-700">
@@ -30,7 +38,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, title }) => {
                   <span className="text-sm sm:text-base">{user.username}</span>
                 </div>
                 <button
-                  onClick={logout}
+                  onClick={handleLogout}
                   className="flex items-center space-x-1 sm:space-x-2 px-3 py-2 rounded-lg bg-red-600 hover:bg-red-700 transition-colors min-h-[44px] touch-target"
                 >
                   <LogOut className="w-4 h-4" />
