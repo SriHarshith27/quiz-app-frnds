@@ -208,6 +208,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       console.log('Attempting login with:', { email, passwordLength: password.length });
       
+      // First try direct bcrypt login (for users with password field)
+      const legacyUser = await handleDirectBcryptLogin(email, password);
+      if (legacyUser) {
+        console.log('Direct bcrypt login successful');
+        setUser(legacyUser);
+        return;
+      }
+      
+      // Fallback to Supabase Auth for users without password field
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
@@ -216,14 +225,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (error) {
         console.error('Supabase auth error:', error);
         
-        // If credentials are invalid, check if this is a legacy user
         if (error.message.includes('Invalid login credentials')) {
-          console.log('Checking for legacy user...');
-          const legacyUser = await handleLegacyUserLogin(email, password);
-          if (legacyUser) {
-            return; // Login successful with legacy user migration
-          }
-          throw new Error('Invalid email or password. If you registered before our recent update, please use the "Reset Password" option to create a new password.');
+          throw new Error('Invalid email or password. Please check your credentials and try again.');
         } else if (error.message.includes('Email not confirmed')) {
           throw new Error('Please check your email and click the confirmation link before logging in.');
         } else if (error.message.includes('Too many requests')) {
@@ -240,13 +243,44 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         if (profile) {
           setUser(profile);
         } else {
-          // More specific error message for profile issues
-          throw new Error('Unable to access your account profile. This might be a temporary issue. Please try logging in again or contact support if the problem persists.');
+          throw new Error('Unable to access your account profile. Please try again or contact support.');
         }
       }
     } catch (error) {
       console.error('Login error:', error);
       throw error;
+    }
+  };
+
+  // Direct bcrypt login for users with password field
+  const handleDirectBcryptLogin = async (email: string, password: string) => {
+    try {
+      // Check if user exists in our users table with a password field
+      const { data: user, error } = await supabase
+        .from('users')
+        .select('*')
+        .eq('email', email)
+        .single();
+
+      if (error || !user || !user.password) {
+        return null; // Not a bcrypt user
+      }
+
+      console.log('Found user with bcrypt password, verifying...');
+      
+      // Import bcrypt dynamically
+      const bcrypt = await import('bcryptjs');
+      const isValidPassword = await bcrypt.compare(password, user.password);
+      
+      if (!isValidPassword) {
+        return null; // Wrong password
+      }
+
+      console.log('Bcrypt password verified successfully');
+      return user;
+    } catch (error) {
+      console.error('Direct bcrypt login error:', error);
+      return null;
     }
   };
 
@@ -319,48 +353,54 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       console.log('Attempting registration with:', { username, email, passwordLength: password.length });
       
-      // First, sign up with Supabase auth
-      const { data, error } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          data: {
-            username: username,
-          },
-        },
-      });
+      // Check if user already exists
+      const { data: existingUser } = await supabase
+        .from('users')
+        .select('id, email')
+        .eq('email', email)
+        .single();
 
-      if (error) {
-        console.error('Supabase signup error:', error);
-        throw error;
+      if (existingUser) {
+        throw new Error('An account with this email already exists');
       }
 
-      console.log('Supabase signup successful:', data.user?.id);
+      // Generate bcrypt hash for password
+      const bcrypt = await import('bcryptjs');
+      const hashedPassword = await bcrypt.hash(password, 12);
+      
+      // Generate a unique ID
+      const userId = `user-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+      
+      // Create user profile directly in users table
+      const { data: newProfile, error: createError } = await supabase
+        .from('users')
+        .insert([{
+          id: userId,
+          username: username,
+          email: email,
+          role: 'user',
+          password: hashedPassword,
+          created_at: new Date().toISOString()
+        }])
+        .select()
+        .single();
 
-      if (data.user) {
-        // Create user profile in the users table
-        const { data: profile, error: profileError } = await supabase
-          .from('users')
-          .insert([{
-            id: data.user.id,
-            username,
-            email,
-            role: 'user'
-          }])
-          .select()
-          .single();
-
-        if (profileError) {
-          console.error('Profile creation error:', profileError);
-          throw profileError;
+      if (createError) {
+        if (createError.code === '23505') { // Unique violation
+          throw new Error('An account with this email already exists');
         }
-
-        console.log('Profile created successfully:', profile?.username);
-
-        if (profile) {
-          setUser(profile);
-        }
+        console.error('Error creating user profile:', createError);
+        throw new Error('Failed to create account. Please try again.');
       }
+
+      console.log('User registered successfully:', newProfile?.username);
+      
+      // Set user and log them in
+      if (newProfile) {
+        setUser(newProfile);
+      }
+      
+      return newProfile;
     } catch (error) {
       console.error('Registration error:', error);
       throw error;

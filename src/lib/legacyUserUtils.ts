@@ -92,19 +92,38 @@ export const cleanupLegacyPassword = async (email: string): Promise<void> => {
  */
 export const getLegacyUserStats = async () => {
   try {
+    // Try to query for users with passwords
     const { data: usersWithPasswords, error } = await supabase
       .from('users')
       .select('id, email, username, created_at, password')
       .not('password', 'is', null);
 
-    if (error) throw error;
+    if (error) {
+      // If password column doesn't exist, return explanation
+      if (error.message.includes('column "password" does not exist')) {
+        console.log('Password column does not exist - no legacy users found');
+        return {
+          total: 0,
+          users: [],
+          message: 'No password column found. All users are using Supabase Auth.'
+        };
+      }
+      throw error;
+    }
 
     return {
       total: usersWithPasswords?.length || 0,
-      users: usersWithPasswords || []
+      users: usersWithPasswords || [],
+      message: usersWithPasswords?.length ? 
+        `Found ${usersWithPasswords.length} legacy users with stored passwords` :
+        'No legacy users found with stored passwords'
     };
   } catch (error) {
     console.error('Error getting legacy user stats:', error);
-    return { total: 0, users: [] };
+    return { 
+      total: 0, 
+      users: [],
+      message: 'Error checking for legacy users. Check console for details.'
+    };
   }
 };
