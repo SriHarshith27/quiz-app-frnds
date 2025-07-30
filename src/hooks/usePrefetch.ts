@@ -101,7 +101,7 @@ export const usePrefetch = () => {
       
       // Prefetch leaderboard data when user hovers over leaderboard-related elements
       if (target.textContent?.toLowerCase().includes('leaderboard') || 
-          target.classList.contains('leaderboard-trigger')) {
+          target.classList?.contains('leaderboard-trigger')) {
         queryClient.prefetchQuery({
           queryKey: QUERY_KEYS.leaderboard,
           queryFn: async () => {

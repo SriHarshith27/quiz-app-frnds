@@ -353,7 +353,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       console.log('Attempting registration with:', { username, email, passwordLength: password.length });
       
-      // Check if user already exists
+      // Check if user already exists in our users table
       const { data: existingUser } = await supabase
         .from('users')
         .select('id, email')
@@ -364,41 +364,43 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         throw new Error('An account with this email already exists');
       }
 
-      // Generate bcrypt hash for password
-      const bcrypt = await import('bcryptjs');
-      const hashedPassword = await bcrypt.hash(password, 12);
-      
-      // Generate a unique ID
-      const userId = `user-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-      
-      // Create user profile directly in users table
-      const { data: newProfile, error: createError } = await supabase
-        .from('users')
-        .insert([{
-          id: userId,
-          username: username,
-          email: email,
-          role: 'user',
-          password: hashedPassword,
-          created_at: new Date().toISOString()
-        }])
-        .select()
-        .single();
+      // Use Supabase's built-in authentication
+      const { data: authData, error: signUpError } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: {
+            username: username
+          }
+        }
+      });
 
-      if (createError) {
-        if (createError.code === '23505') { // Unique violation
+      if (signUpError) {
+        console.error('Supabase signUp error:', signUpError);
+        if (signUpError.message.includes('already registered')) {
           throw new Error('An account with this email already exists');
         }
-        console.error('Error creating user profile:', createError);
+        throw new Error(signUpError.message || 'Failed to create account. Please try again.');
+      }
+
+      if (!authData.user) {
         throw new Error('Failed to create account. Please try again.');
       }
 
-      console.log('User registered successfully:', newProfile?.username);
+      console.log('Supabase auth user created:', authData.user.id);
+
+      // The user profile should be automatically created by the database trigger
+      // Let's ensure it exists
+      const newProfile = await ensureUserProfile(authData.user);
+      
+      if (!newProfile) {
+        throw new Error('Failed to create user profile. Please try again.');
+      }
+
+      console.log('User registered successfully:', newProfile.username);
       
       // Set user and log them in
-      if (newProfile) {
-        setUser(newProfile);
-      }
+      setUser(newProfile);
       
       return newProfile;
     } catch (error) {
