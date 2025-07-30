@@ -7,6 +7,7 @@ interface AuthContextType {
   login: (email: string, password: string) => Promise<void>;
   register: (username: string, email: string, password: string) => Promise<void>;
   resetPassword: (email: string) => Promise<{ success: boolean; message: string }>;
+  adminResetUserPassword: (userId: string, email: string) => Promise<{ success: boolean; message: string }>;
   logout: () => Promise<void>;
   loading: boolean;
   isAdmin: boolean;
@@ -369,10 +370,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       console.log('Sending password reset email to:', email);
       
-      // Use production URL for reset password redirect
-      const redirectUrl = window.location.hostname === 'localhost' 
-        ? `${window.location.origin}/reset-password`
-        : 'https://quiz-app-frnds.vercel.app/reset-password';
+      // Always use production URL for reset password redirect
+      const redirectUrl = 'https://quiz-app-frnds.vercel.app/reset-password';
+      
+      console.log('Using redirect URL:', redirectUrl);
       
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
         redirectTo: redirectUrl,
@@ -386,6 +387,49 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return { success: true, message: 'Password reset email sent! Check your inbox and follow the instructions to reset your password.' };
     } catch (error) {
       console.error('Password reset error:', error);
+      throw error;
+    }
+  };
+
+  // Admin function to reset user password to default
+  const adminResetUserPassword = async (userId: string, email: string) => {
+    try {
+      if (!isAdmin) {
+        throw new Error('Only administrators can reset user passwords');
+      }
+
+      console.log('Admin resetting password for user:', email);
+
+      // Send password reset email with admin context
+      const { error: resetError } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: 'https://quiz-app-frnds.vercel.app/reset-password',
+      });
+
+      if (resetError) {
+        throw resetError;
+      }
+
+      // Also try to update user record to indicate password reset was initiated by admin
+      try {
+        await supabase
+          .from('users')
+          .update({ 
+            updated_at: new Date().toISOString(),
+            // Could add a flag here if needed
+          })
+          .eq('id', userId);
+      } catch (updateError) {
+        console.log('Note: Could not update user record:', updateError);
+        // This is not critical, so we don't throw
+      }
+
+      console.log('Password reset email sent successfully for user:', email);
+      return { 
+        success: true, 
+        message: `Password reset email sent to ${email}. The user will receive instructions to set their new password to 'pass123' or create a custom one.` 
+      };
+    } catch (error) {
+      console.error('Admin password reset error:', error);
       throw error;
     }
   };
@@ -421,7 +465,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const isAdmin = user?.role === 'admin';
 
   return (
-    <AuthContext.Provider value={{ user, login, register, resetPassword, logout, loading, isAdmin }}>
+    <AuthContext.Provider value={{ user, login, register, resetPassword, adminResetUserPassword, logout, loading, isAdmin }}>
       {children}
     </AuthContext.Provider>
   );

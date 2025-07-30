@@ -5,14 +5,15 @@ import { CSVUploader } from './CSVUploader';
 import { AllQuizResults } from './AllQuizResults';
 import { QuizResults } from './QuizResults';
 import { Leaderboard } from './Leaderboard';
+import { UserManagement } from './UserManagement';
 
-type ActiveView = 'Analytics' | 'Create Quiz' | 'Upload CSV' | 'All Results' | 'Leaderboard' | 'View Result';
+type ActiveView = 'Analytics' | 'Create Quiz' | 'Upload CSV' | 'All Results' | 'Leaderboard' | 'User Management' | 'View Result';
 
 const AdminDashboard: React.FC = () => {
   const [activeView, setActiveView] = useState<ActiveView>('Analytics');
   const [selectedAttemptId, setSelectedAttemptId] = useState<string | null>(null);
 
-  const tabs: ActiveView[] = ['Analytics', 'Create Quiz', 'Upload CSV', 'All Results', 'Leaderboard'];
+  const tabs: ActiveView[] = ['Analytics', 'Create Quiz', 'Upload CSV', 'All Results', 'Leaderboard', 'User Management'];
 
   const handleQuizCreated = () => {
     // Placeholder for quiz creation success handling
@@ -64,6 +65,8 @@ const AdminDashboard: React.FC = () => {
         );
       case 'Leaderboard':
         return <Leaderboard />;
+      case 'User Management':
+        return <UserManagement />;
       case 'View Result':
         if (!selectedAttemptId) {
           return (
