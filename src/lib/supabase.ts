@@ -7,4 +7,22 @@ if (!supabaseUrl || !supabaseAnonKey) {
   throw new Error('Missing Supabase environment variables');
 }
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+// Create Supabase client with proper auth configuration
+export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+  auth: {
+    // Enable debug mode in development
+    debug: import.meta.env.MODE === 'development'
+  }
+});
+
+// Utility function to get the correct redirect URL
+export const getResetPasswordUrl = () => {
+  if (typeof window === 'undefined') {
+    return 'https://quiz-app-frnds.vercel.app/reset-password';
+  }
+  
+  const isDevelopment = window.location.hostname === 'localhost';
+  return isDevelopment 
+    ? `${window.location.origin}/reset-password`
+    : 'https://quiz-app-frnds.vercel.app/reset-password';
+};

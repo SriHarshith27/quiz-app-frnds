@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Lock, ArrowLeft, CheckCircle, AlertCircle } from 'lucide-react';
 import { supabase } from '../lib/supabase';
+import { cleanupLegacyPassword } from '../lib/legacyUserUtils';
 
 interface ResetPasswordProps {
   onBack: () => void;
@@ -67,6 +68,18 @@ export const ResetPassword: React.FC<ResetPasswordProps> = ({ onBack }) => {
 
       if (error) {
         throw error;
+      }
+
+      // Clean up legacy password field if this was a migrated user
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user?.user_metadata?.migrated_legacy_user && user.email) {
+          console.log('Cleaning up legacy password field for migrated user...');
+          await cleanupLegacyPassword(user.email);
+        }
+      } catch (cleanupError) {
+        console.warn('Failed to clean up legacy password:', cleanupError);
+        // Don't fail the reset if cleanup fails
       }
 
       setSuccess(true);

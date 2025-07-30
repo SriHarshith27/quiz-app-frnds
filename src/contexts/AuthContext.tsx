@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { User } from '../types';
-import { supabase } from '../lib/supabase';
+import { supabase, getResetPasswordUrl } from '../lib/supabase';
+import { checkLegacyUser, migrateLegacyUser } from '../lib/legacyUserUtils';
 
 interface AuthContextType {
   user: User | null;
@@ -370,24 +371,67 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       console.log('Sending password reset email to:', email);
       
-      // Always use production URL for reset password redirect
-      const redirectUrl = 'https://quiz-app-frnds.vercel.app/reset-password';
-      
+      const redirectUrl = getResetPasswordUrl();
       console.log('Using redirect URL:', redirectUrl);
+
+      // Check if this is a legacy user first
+      const legacyUser = await checkLegacyUser(email);
       
+      if (legacyUser) {
+        console.log('Found legacy user, migrating to Supabase Auth...');
+        
+        const migrationSuccess = await migrateLegacyUser(legacyUser);
+        
+        if (!migrationSuccess) {
+          return {
+            success: false,
+            message: 'Failed to migrate your legacy account. Please contact support.'
+          };
+        }
+        
+        // Small delay to ensure migration is complete
+        await new Promise(resolve => setTimeout(resolve, 1000));
+      }
+
+      // Send password reset email (works for both regular and newly migrated users)
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
         redirectTo: redirectUrl,
       });
 
       if (error) {
-        throw error;
+        console.error('Supabase resetPasswordForEmail error:', error);
+        
+        // Provide user-friendly error messages
+        if (error.message.includes('User not found')) {
+          return {
+            success: false,
+            message: 'No account found with this email address. Please check your email or create a new account.'
+          };
+        }
+        
+        return {
+          success: false,
+          message: 'Failed to send password reset email. Please try again or contact support.'
+        };
       }
 
       console.log('Password reset email sent successfully');
-      return { success: true, message: 'Password reset email sent! Check your inbox and follow the instructions to reset your password.' };
+      
+      const message = legacyUser 
+        ? `Password reset email sent! We've migrated your legacy account to our new system. Check your inbox and follow the instructions to set your new password.`
+        : `Password reset email sent! Check your inbox and follow the instructions to reset your password.`;
+      
+      return { 
+        success: true, 
+        message: `${message} The reset link will redirect you to: ${redirectUrl}` 
+      };
+      
     } catch (error) {
       console.error('Password reset error:', error);
-      throw error;
+      return { 
+        success: false, 
+        message: 'An unexpected error occurred. Please try again or contact support.' 
+      };
     }
   };
 
@@ -400,12 +444,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       console.log('Admin resetting password for user:', email);
 
+      // Use utility function to get correct redirect URL
+      const redirectUrl = getResetPasswordUrl();
+
       // Send password reset email with admin context
       const { error: resetError } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: 'https://quiz-app-frnds.vercel.app/reset-password',
+        redirectTo: redirectUrl,
       });
 
       if (resetError) {
+        console.error('Admin reset password error:', resetError);
         throw resetError;
       }
 
