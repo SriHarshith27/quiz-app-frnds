@@ -1,19 +1,24 @@
-import React, { useState } from 'react';
-import { EnhancedAnalytics } from './EnhancedAnalytics';
+import React, { useState, Suspense } from 'react';
+import { motion } from 'framer-motion';
 import { QuizCreator } from './QuizCreator';
 import { CSVUploader } from './CSVUploader';
-import { AllQuizResults } from './AllQuizResults';
 import { QuizResults } from './QuizResults';
-import { Leaderboard } from './Leaderboard';
-import { UserManagement } from './UserManagement';
+import { 
+  LazyLeaderboard,
+  LazyEnhancedAnalytics,
+  LazyUserManagement,
+  LazyCredentialManagement,
+  LazyAllQuizResults,
+  LazyFallback
+} from './LazyComponents';
 
-type ActiveView = 'Analytics' | 'Create Quiz' | 'Upload CSV' | 'All Results' | 'Leaderboard' | 'User Management' | 'View Result';
+type ActiveView = 'Analytics' | 'Create Quiz' | 'Upload CSV' | 'All Results' | 'Leaderboard' | 'Credentials' | 'User Management' | 'View Result';
 
 const AdminDashboard: React.FC = () => {
   const [activeView, setActiveView] = useState<ActiveView>('Analytics');
   const [selectedAttemptId, setSelectedAttemptId] = useState<string | null>(null);
 
-  const tabs: ActiveView[] = ['Analytics', 'Create Quiz', 'Upload CSV', 'All Results', 'Leaderboard', 'User Management'];
+  const tabs: ActiveView[] = ['Analytics', 'Create Quiz', 'Upload CSV', 'All Results', 'Leaderboard', 'Credentials'];
 
   const handleQuizCreated = () => {
     // Placeholder for quiz creation success handling
@@ -42,7 +47,11 @@ const AdminDashboard: React.FC = () => {
   const renderActiveComponent = () => {
     switch (activeView) {
       case 'Analytics':
-        return <EnhancedAnalytics />;
+        return (
+          <Suspense fallback={<LazyFallback text="Loading Analytics..." />}>
+            <LazyEnhancedAnalytics />
+          </Suspense>
+        );
       case 'Create Quiz':
         return (
           <QuizCreator 
@@ -59,14 +68,30 @@ const AdminDashboard: React.FC = () => {
         );
       case 'All Results':
         return (
-          <AllQuizResults 
-            onViewAttempt={handleViewAttempt}
-          />
+          <Suspense fallback={<LazyFallback text="Loading Results..." />}>
+            <LazyAllQuizResults 
+              onViewAttempt={handleViewAttempt}
+            />
+          </Suspense>
         );
       case 'Leaderboard':
-        return <Leaderboard />;
+        return (
+          <Suspense fallback={<LazyFallback text="Loading Leaderboard..." />}>
+            <LazyLeaderboard />
+          </Suspense>
+        );
+      case 'Credentials':
+        return (
+          <Suspense fallback={<LazyFallback text="Loading Credentials..." />}>
+            <LazyCredentialManagement />
+          </Suspense>
+        );
       case 'User Management':
-        return <UserManagement />;
+        return (
+          <Suspense fallback={<LazyFallback text="Loading User Management..." />}>
+            <LazyUserManagement />
+          </Suspense>
+        );
       case 'View Result':
         if (!selectedAttemptId) {
           return (
@@ -88,7 +113,11 @@ const AdminDashboard: React.FC = () => {
           />
         );
       default:
-        return <EnhancedAnalytics />;
+        return (
+          <Suspense fallback={<LazyFallback text="Loading..." />}>
+            <LazyEnhancedAnalytics />
+          </Suspense>
+        );
     }
   };
 
@@ -100,17 +129,19 @@ const AdminDashboard: React.FC = () => {
         <div className="border-b border-gray-700 mb-6">
           <nav className="flex space-x-8">
             {tabs.map((tab) => (
-              <button
+              <motion.button
                 key={tab}
                 onClick={() => setActiveView(tab)}
-                className={`py-2 px-1 border-b-2 font-medium text-sm transition-colors ${
+                className={`py-2 px-1 border-b-2 font-medium text-sm transition-all duration-200 ${
                   activeView === tab
                     ? 'border-indigo-400 text-indigo-400'
                     : 'border-transparent text-gray-400 hover:text-gray-300 hover:border-gray-300'
                 }`}
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
               >
                 {tab}
-              </button>
+              </motion.button>
             ))}
           </nav>
         </div>

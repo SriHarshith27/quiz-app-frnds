@@ -2,17 +2,27 @@ import React, { useState, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { Medal, Award, Crown, Target, Clock, BookOpen, TrendingUp, Filter, Users } from 'lucide-react';
 import { useLeaderboard, useQuizzes, useUsers } from '../hooks/useQueries';
+import { AppleLoading, SkeletonCard } from './AppleLoading';
 
 export const Leaderboard: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'overall' | 'quiz-specific'>('overall');
   const [timeFilter, setTimeFilter] = useState<'all-time' | 'this-month' | 'this-week'>('all-time');
 
-  // Use React Query hooks
+  // Use React Query hooks with optimized loading
   const { data: leaderboardData, isLoading: leaderboardLoading, error: leaderboardError } = useLeaderboard();
-  const { data: quizzes, isLoading: quizzesLoading } = useQuizzes();
-  const { data: users, isLoading: usersLoading } = useUsers();
+  const { 
+    data: quizzes, 
+    isLoading: quizzesLoading 
+  } = useQuizzes();
+  const { 
+    data: users, 
+    isLoading: usersLoading 
+  } = useUsers();
 
-  const loading = leaderboardLoading || quizzesLoading || usersLoading;
+  // Show loading only for the active tab's required data
+  const loading = leaderboardLoading || 
+    (activeTab === 'overall' && usersLoading) || 
+    (activeTab === 'quiz-specific' && (quizzesLoading || usersLoading));
 
   // Process leaderboard data
   const overallLeaderboard = useMemo(() => {
@@ -93,10 +103,27 @@ export const Leaderboard: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-900 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-16 w-16 border-t-2 border-blue-500 mx-auto mb-4"></div>
-          <p className="text-gray-400">Loading leaderboard...</p>
+      <div className="min-h-screen bg-gray-900 text-white">
+        <div className="max-w-6xl mx-auto px-4 py-8">
+          {/* Header */}
+          <div className="text-center mb-8">
+            <h1 className="text-4xl font-bold bg-gradient-to-r from-yellow-400 to-orange-500 bg-clip-text text-transparent mb-2">
+              🏆 Leaderboard
+            </h1>
+            <p className="text-gray-400">See how you stack up against other quiz masters!</p>
+          </div>
+
+          {/* Loading State */}
+          <div className="flex justify-center items-center py-20">
+            <AppleLoading size="lg" text="Loading leaderboard..." />
+          </div>
+
+          {/* Skeleton Cards */}
+          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 mt-12">
+            {[...Array(6)].map((_, i) => (
+              <SkeletonCard key={i} />
+            ))}
+          </div>
         </div>
       </div>
     );
@@ -184,7 +211,7 @@ export const Leaderboard: React.FC = () => {
             </div>
 
             <div className="divide-y divide-gray-700">
-              {overallLeaderboard.slice(0, 50).map((entry) => (
+              {overallLeaderboard.slice(0, 50).map((entry: any) => (
                 <motion.div
                   key={entry.user.id}
                   initial={{ opacity: 0, x: -20 }}
@@ -252,7 +279,7 @@ export const Leaderboard: React.FC = () => {
                 </div>
 
                 <div className="divide-y divide-gray-700">
-                  {quizLeaderboard.topPerformers.map((performer) => (
+                  {quizLeaderboard.topPerformers.map((performer: any) => (
                     <div
                       key={`${performer.user.id}-${quizLeaderboard.quiz.id}`}
                       className="p-4 hover:bg-gray-750 transition-colors"

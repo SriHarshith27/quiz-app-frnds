@@ -17,20 +17,22 @@ export const QUERY_KEYS = {
   analytics: ['analytics'] as const,
 } as const;
 
-// User-related queries
+// User-related queries - optimized
 export const useUsers = () => {
   return useQuery({
     queryKey: QUERY_KEYS.users,
     queryFn: async () => {
       const { data, error } = await supabase
         .from('users')
-        .select('*')
+        .select('id, username, email, role, created_at')
         .order('created_at', { ascending: false });
       
       if (error) throw error;
       return data;
     },
-    staleTime: 2 * 60 * 1000, // Users data is relatively stable
+    staleTime: 5 * 60 * 1000, // Users data is stable, cache for 5 minutes
+    gcTime: 10 * 60 * 1000, // Keep in cache for 10 minutes
+    refetchOnWindowFocus: false, // Don't refetch on window focus
   });
 };
 
@@ -52,7 +54,7 @@ export const useUser = (userId: string) => {
   });
 };
 
-// Quiz-related queries
+// Quiz-related queries - optimized
 export const useQuizzes = () => {
   return useQuery({
     queryKey: QUERY_KEYS.quizzes,
@@ -60,7 +62,11 @@ export const useQuizzes = () => {
       const { data, error } = await supabase
         .from('quizzes')
         .select(`
-          *,
+          id,
+          title,
+          description,
+          created_at,
+          created_by,
           questions (count),
           users (username)
         `)
@@ -69,7 +75,9 @@ export const useQuizzes = () => {
       if (error) throw error;
       return data;
     },
-    staleTime: 10 * 60 * 1000, // Quizzes change less frequently
+    staleTime: 15 * 60 * 1000, // Quizzes change less frequently, cache for 15 minutes
+    gcTime: 30 * 60 * 1000, // Keep in cache for 30 minutes
+    refetchOnWindowFocus: false, // Don't refetch on window focus
   });
 };
 
@@ -179,40 +187,61 @@ export const useQuizResults = (quizId: string) => {
   });
 };
 
-// Leaderboard - highly dynamic data
+// Leaderboard - optimized with better caching
 export const useLeaderboard = () => {
   return useQuery({
     queryKey: QUERY_KEYS.leaderboard,
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('quiz_attempts')
-        .select(`
-          user_id,
-          score,
-          users (username)
-        `)
-        .order('score', { ascending: false })
-        .limit(50);
+      // Use a more efficient query with CTE (Common Table Expression)
+      const { data, error } = await supabase.rpc('get_leaderboard', {
+        limit_count: 50
+      });
       
-      if (error) throw error;
+      if (error) {
+        // Fallback to original query if RPC fails
+        console.log('RPC failed, using fallback query');
+        const { data: fallbackData, error: fallbackError } = await supabase
+          .from('quiz_attempts')
+          .select(`
+            user_id,
+            score,
+            quiz_id,
+            completed_at,
+            users!inner (username)
+          `)
+          .order('score', { ascending: false })
+          .limit(50);
+        
+        if (fallbackError) throw fallbackError;
+        
+        // Group by user and calculate best scores efficiently
+        const userScoresMap = new Map();
+        fallbackData.forEach((attempt: any) => {
+          const userId = attempt.user_id;
+          const currentBest = userScoresMap.get(userId);
+          
+          if (!currentBest || currentBest.score < attempt.score) {
+            userScoresMap.set(userId, {
+              userId,
+              username: attempt.users.username,
+              score: attempt.score,
+              quizId: attempt.quiz_id,
+              completedAt: attempt.completed_at,
+              totalQuestions: 10, // Default assumption
+              timeSpent: 0 // Default assumption
+            });
+          }
+        });
+        
+        return Array.from(userScoresMap.values()).sort((a: any, b: any) => b.score - a.score);
+      }
       
-      // Group by user and calculate best scores
-      const userScores = data.reduce((acc: any, attempt: any) => {
-        const userId = attempt.user_id;
-        if (!acc[userId] || acc[userId].score < attempt.score) {
-          acc[userId] = {
-            userId,
-            username: attempt.users.username,
-            score: attempt.score,
-          };
-        }
-        return acc;
-      }, {});
-      
-      return Object.values(userScores).sort((a: any, b: any) => b.score - a.score);
+      return data || [];
     },
-    staleTime: 30 * 1000, // Leaderboard updates frequently, cache for 30 seconds
-    refetchInterval: 60 * 1000, // Auto-refetch every minute
+    staleTime: 2 * 60 * 1000, // Cache for 2 minutes instead of 30 seconds
+    gcTime: 5 * 60 * 1000, // Keep in cache for 5 minutes
+    refetchInterval: 3 * 60 * 1000, // Auto-refetch every 3 minutes instead of 1
+    refetchOnWindowFocus: false, // Don't refetch on window focus for better performance
   });
 };
 

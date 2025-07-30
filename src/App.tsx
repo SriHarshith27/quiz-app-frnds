@@ -4,10 +4,12 @@ import { Layout } from './components/Layout';
 import { LoginForm } from './components/LoginForm';
 import { ResetPassword } from './components/ResetPassword';
 import { ErrorBoundary } from './components/ErrorBoundary';
+import { AppleLoading } from './components/AppleLoading';
 import { NewUserDashboard } from './components/NewUserDashboard';
 import { AdminDashboard } from './components/AdminDashboard';
 import { QuizTaker } from './components/QuizTaker';
 import { QuizResults } from './components/QuizResults';
+import { usePrefetch } from './hooks/usePrefetch';
 import { Quiz, QuizAttempt } from './types';
 
 type AppState = 'login' | 'reset-password' | 'dashboard' | 'take-quiz' | 'view-results';
@@ -17,6 +19,9 @@ function AppContent() {
   const [currentState, setCurrentState] = useState<AppState>('login');
   const [selectedQuiz, setSelectedQuiz] = useState<Quiz | null>(null);
   const [selectedAttemptId, setSelectedAttemptId] = useState<string | null>(null);
+
+  // Enable intelligent prefetching for better performance
+  usePrefetch();
 
   // Check URL for reset password route
   useEffect(() => {
@@ -35,7 +40,7 @@ function AppContent() {
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-900 flex items-center justify-center">
-        <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+        <AppleLoading size="lg" text="Initializing app..." />
       </div>
     );
   }
