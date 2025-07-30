@@ -167,25 +167,35 @@ export const LoginForm: React.FC = () => {
 
           {showResetPassword ? (
             <div className="space-y-4">
-              <div className="text-center text-gray-300">
-                <p className="text-sm">Enter your email to reset your password</p>
+              <div className="text-center">
+                <h3 className="text-lg font-semibold text-white mb-2">Reset Your Password</h3>
+                <p className="text-sm text-gray-300">
+                  Enter your email address and we'll send you a link to reset your password.
+                </p>
               </div>
-              <div className="flex space-x-2">
-                <button
+              <div className="flex flex-col space-y-3">
+                <motion.button
                   onClick={handleResetPassword}
                   disabled={loading || !formData.email}
-                  className="flex-1 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white py-2 px-4 rounded-lg transition-all"
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  className="w-full bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-white py-3 px-4 rounded-lg font-medium transition-all"
                 >
-                  {loading ? 'Sending...' : 'Send Reset Email'}
-                </button>
+                  {loading ? (
+                    <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin mx-auto" />
+                  ) : (
+                    'Send Reset Link'
+                  )}
+                </motion.button>
                 <button
                   onClick={() => {
                     setShowResetPassword(false);
                     setError('');
+                    setSuccessMessage('');
                   }}
-                  className="px-4 py-2 text-gray-400 hover:text-white transition-colors"
+                  className="w-full py-2 px-4 text-gray-400 hover:text-white transition-colors"
                 >
-                  Cancel
+                  Back to Login
                 </button>
               </div>
             </div>

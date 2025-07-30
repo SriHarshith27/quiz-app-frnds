@@ -29,6 +29,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // Helper function to ensure user profile exists
   const ensureUserProfile = async (authUser: any) => {
     try {
+      // Add a small cache to avoid repeated calls for the same user
+      const cachedProfile = sessionStorage.getItem(`profile_${authUser.id}`);
+      if (cachedProfile) {
+        try {
+          const parsed = JSON.parse(cachedProfile);
+          // Cache is valid for 5 minutes
+          if (Date.now() - parsed.timestamp < 5 * 60 * 1000) {
+            console.log('Using cached profile:', parsed.profile.username);
+            return parsed.profile;
+          }
+        } catch (e) {
+          // Invalid cache, continue with API call
+        }
+      }
+
       // Try to get existing profile
       const { data: profile, error } = await supabase
         .from('users')
@@ -43,6 +58,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       if (profile) {
         console.log('Profile found:', profile.username);
+        // Cache the profile
+        sessionStorage.setItem(`profile_${authUser.id}`, JSON.stringify({
+          profile,
+          timestamp: Date.now()
+        }));
         return profile;
       }
 
@@ -73,6 +93,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
           if (existingById) {
             console.log('Found existing profile by ID after race condition:', existingById.username);
+            // Cache the found profile
+            sessionStorage.setItem(`profile_${authUser.id}`, JSON.stringify({
+              profile: existingById,
+              timestamp: Date.now()
+            }));
             return existingById;
           }
 
@@ -85,6 +110,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
           if (existingByEmail) {
             console.log('Found existing profile by email after race condition:', existingByEmail.username);
+            // Cache the found profile
+            sessionStorage.setItem(`profile_${authUser.id}`, JSON.stringify({
+              profile: existingByEmail,
+              timestamp: Date.now()
+            }));
             return existingByEmail;
           }
 
@@ -100,6 +130,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
           if (finalTry) {
             console.log('Found profile on final attempt:', finalTry.username);
+            // Cache the found profile
+            sessionStorage.setItem(`profile_${authUser.id}`, JSON.stringify({
+              profile: finalTry,
+              timestamp: Date.now()
+            }));
             return finalTry;
           }
         }
@@ -109,6 +144,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
 
       console.log('Profile created successfully:', newProfile?.username);
+      
+      // Cache the new profile
+      if (newProfile) {
+        sessionStorage.setItem(`profile_${authUser.id}`, JSON.stringify({
+          profile: newProfile,
+          timestamp: Date.now()
+        }));
+      }
+      
       return newProfile;
     } catch (error) {
       console.error('Error in ensureUserProfile:', error);
@@ -134,14 +178,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     getInitialSession();
 
     // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_, session) => {
-      if (session?.user) {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      console.log('Auth state changed:', event, session?.user?.id);
+      
+      // Only process specific events to avoid unnecessary calls
+      if (event === 'SIGNED_IN' && session?.user) {
         const profile = await ensureUserProfile(session.user);
         if (profile) {
           setUser(profile);
         }
-      } else {
+      } else if (event === 'SIGNED_OUT') {
         setUser(null);
+      } else if (event === 'TOKEN_REFRESHED' && session?.user && !user) {
+        // Only fetch profile if we don't already have a user (edge case)
+        const profile = await ensureUserProfile(session.user);
+        if (profile) {
+          setUser(profile);
+        }
       }
       setLoading(false);
     });
@@ -316,8 +369,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       console.log('Sending password reset email to:', email);
       
+      // Use production URL for reset password redirect
+      const redirectUrl = window.location.hostname === 'localhost' 
+        ? `${window.location.origin}/reset-password`
+        : 'https://quiz-app-frnds.vercel.app/reset-password';
+      
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${window.location.origin}/reset-password`,
+        redirectTo: redirectUrl,
       });
 
       if (error) {
@@ -325,7 +383,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
 
       console.log('Password reset email sent successfully');
-      return { success: true, message: 'Password reset email sent! Check your inbox.' };
+      return { success: true, message: 'Password reset email sent! Check your inbox and follow the instructions to reset your password.' };
     } catch (error) {
       console.error('Password reset error:', error);
       throw error;
@@ -336,6 +394,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       console.log('Logging out...');
       setLoading(true);
+      
+      // Clear profile cache for current user
+      if (user?.id) {
+        sessionStorage.removeItem(`profile_${user.id}`);
+      }
       
       const { error } = await supabase.auth.signOut();
       

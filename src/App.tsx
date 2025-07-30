@@ -1,20 +1,36 @@
-import React, { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { Layout } from './components/Layout';
 import { LoginForm } from './components/LoginForm';
+import { ResetPassword } from './components/ResetPassword';
+import { ErrorBoundary } from './components/ErrorBoundary';
 import { NewUserDashboard } from './components/NewUserDashboard';
 import { AdminDashboard } from './components/AdminDashboard';
 import { QuizTaker } from './components/QuizTaker';
 import { QuizResults } from './components/QuizResults';
 import { Quiz, QuizAttempt } from './types';
 
-type AppState = 'dashboard' | 'take-quiz' | 'view-results';
+type AppState = 'login' | 'reset-password' | 'dashboard' | 'take-quiz' | 'view-results';
 
 function AppContent() {
   const { user, loading, isAdmin } = useAuth();
-  const [currentState, setCurrentState] = useState<AppState>('dashboard');
+  const [currentState, setCurrentState] = useState<AppState>('login');
   const [selectedQuiz, setSelectedQuiz] = useState<Quiz | null>(null);
   const [selectedAttemptId, setSelectedAttemptId] = useState<string | null>(null);
+
+  // Check URL for reset password route
+  useEffect(() => {
+    const path = window.location.pathname;
+    const hash = window.location.hash;
+    
+    if (path === '/reset-password' || hash.includes('type=recovery')) {
+      setCurrentState('reset-password');
+    } else if (user) {
+      setCurrentState('dashboard');
+    } else {
+      setCurrentState('login');
+    }
+  }, [user]);
 
   if (loading) {
     return (
@@ -22,6 +38,11 @@ function AppContent() {
         <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
       </div>
     );
+  }
+
+  // Handle reset password state
+  if (currentState === 'reset-password') {
+    return <ResetPassword onBack={() => setCurrentState('login')} />;
   }
 
   if (!user) {
@@ -91,9 +112,11 @@ function AppContent() {
 
 function App() {
   return (
-    <AuthProvider>
-      <AppContent />
-    </AuthProvider>
+    <ErrorBoundary>
+      <AuthProvider>
+        <AppContent />
+      </AuthProvider>
+    </ErrorBoundary>
   );
 }
 
