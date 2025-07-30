@@ -26,19 +26,103 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
+  // Helper function to ensure user profile exists
+  const ensureUserProfile = async (authUser: any) => {
+    try {
+      // Try to get existing profile
+      const { data: profile, error } = await supabase
+        .from('users')
+        .select('*')
+        .eq('id', authUser.id)
+        .maybeSingle();
+
+      if (error) {
+        console.error('Error fetching profile:', error);
+        return null;
+      }
+
+      if (profile) {
+        console.log('Profile found:', profile.username);
+        return profile;
+      }
+
+      // Create profile if it doesn't exist
+      console.log('Creating missing profile for user:', authUser.id);
+      const { data: newProfile, error: createError } = await supabase
+        .from('users')
+        .insert([{
+          id: authUser.id,
+          username: authUser.user_metadata?.username || authUser.email?.split('@')[0] || 'User',
+          email: authUser.email!,
+          role: 'user'
+        }])
+        .select()
+        .single();
+
+      if (createError) {
+        // If duplicate key error (23505), try to fetch the existing profile again
+        if (createError.code === '23505') {
+          console.log('Profile already exists due to race condition, trying multiple fetch strategies...');
+          
+          // Try fetching by ID first
+          const { data: existingById } = await supabase
+            .from('users')
+            .select('*')
+            .eq('id', authUser.id)
+            .maybeSingle();
+
+          if (existingById) {
+            console.log('Found existing profile by ID after race condition:', existingById.username);
+            return existingById;
+          }
+
+          // If not found by ID, try by email
+          const { data: existingByEmail } = await supabase
+            .from('users')
+            .select('*')
+            .eq('email', authUser.email!)
+            .maybeSingle();
+
+          if (existingByEmail) {
+            console.log('Found existing profile by email after race condition:', existingByEmail.username);
+            return existingByEmail;
+          }
+
+          // If still not found, wait a moment and try one more time (database trigger might be slow)
+          console.log('Profile not found immediately after creation conflict, waiting 500ms and trying again...');
+          await new Promise(resolve => setTimeout(resolve, 500));
+          
+          const { data: finalTry } = await supabase
+            .from('users')
+            .select('*')
+            .eq('id', authUser.id)
+            .maybeSingle();
+
+          if (finalTry) {
+            console.log('Found profile on final attempt:', finalTry.username);
+            return finalTry;
+          }
+        }
+        
+        console.error('Error creating profile:', createError);
+        return null;
+      }
+
+      console.log('Profile created successfully:', newProfile?.username);
+      return newProfile;
+    } catch (error) {
+      console.error('Error in ensureUserProfile:', error);
+      return null;
+    }
+  };
+
   useEffect(() => {
     // Get initial session
     const getInitialSession = async () => {
       const { data: { session } } = await supabase.auth.getSession();
       
       if (session?.user) {
-        // Get user profile from database
-        const { data: profile } = await supabase
-          .from('users')
-          .select('*')
-          .eq('id', session.user.id)
-          .single();
-        
+        const profile = await ensureUserProfile(session.user);
         if (profile) {
           setUser(profile);
         }
@@ -52,13 +136,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_, session) => {
       if (session?.user) {
-        // Get user profile from database
-        const { data: profile } = await supabase
-          .from('users')
-          .select('*')
-          .eq('id', session.user.id)
-          .single();
-        
+        const profile = await ensureUserProfile(session.user);
         if (profile) {
           setUser(profile);
         }
@@ -103,21 +181,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       console.log('Auth successful, fetching profile for user:', data.user?.id);
 
       if (data.user) {
-        // Get user profile from database
-        const { data: profile, error: profileError } = await supabase
-          .from('users')
-          .select('*')
-          .eq('id', data.user.id)
-          .single();
-
-        if (profileError) {
-          console.error('Profile fetch error:', profileError);
-          throw profileError;
-        }
-
+        const profile = await ensureUserProfile(data.user);
         if (profile) {
-          console.log('Profile fetched successfully:', profile.username);
           setUser(profile);
+        } else {
+          // More specific error message for profile issues
+          throw new Error('Unable to access your account profile. This might be a temporary issue. Please try logging in again or contact support if the problem persists.');
         }
       }
     } catch (error) {
