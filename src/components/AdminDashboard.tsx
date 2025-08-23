@@ -9,17 +9,16 @@ import {
   LazyUserManagement,
   LazyCredentialManagement,
   LazyAllQuizResults,
-  LazyLegacyUserManagement,
   LazyFallback
 } from './LazyComponents';
 
-type ActiveView = 'Analytics' | 'Create Quiz' | 'Upload CSV' | 'All Results' | 'Leaderboard' | 'Credentials' | 'User Management' | 'Legacy Users' | 'View Result';
+type ActiveView = 'Analytics' | 'Create Quiz' | 'Upload CSV' | 'All Results' | 'Leaderboard' | 'Credentials' | 'User Management' | 'View Result';
 
 const AdminDashboard: React.FC = () => {
   const [activeView, setActiveView] = useState<ActiveView>('Analytics');
   const [selectedAttemptId, setSelectedAttemptId] = useState<string | null>(null);
 
-  const tabs: ActiveView[] = ['Analytics', 'Create Quiz', 'Upload CSV', 'All Results', 'Leaderboard', 'Credentials', 'Legacy Users'];
+  const tabs: ActiveView[] = ['Analytics', 'Create Quiz', 'Upload CSV', 'All Results', 'Leaderboard', 'Credentials', 'User Management'];
 
   const handleQuizCreated = () => {
     // Placeholder for quiz creation success handling
@@ -91,12 +90,6 @@ const AdminDashboard: React.FC = () => {
         return (
           <Suspense fallback={<LazyFallback text="Loading User Management..." />}>
             <LazyUserManagement />
-          </Suspense>
-        );
-      case 'Legacy Users':
-        return (
-          <Suspense fallback={<LazyFallback text="Loading Legacy Users..." />}>
-            <LazyLegacyUserManagement />
           </Suspense>
         );
       case 'View Result':

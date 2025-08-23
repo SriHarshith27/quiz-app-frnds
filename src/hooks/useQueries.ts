@@ -30,8 +30,8 @@ export const useUsers = () => {
       if (error) throw error;
       return data;
     },
-    staleTime: 5 * 60 * 1000, // Users data is stable, cache for 5 minutes
-    gcTime: 10 * 60 * 1000, // Keep in cache for 10 minutes
+    staleTime: 2 * 60 * 1000, // Reduced from 5 minutes to 2 minutes
+    gcTime: 5 * 60 * 1000, // Reduced from 10 minutes to 5 minutes
     refetchOnWindowFocus: false, // Don't refetch on window focus
   });
 };
@@ -50,11 +50,10 @@ export const useUser = (userId: string) => {
       return data;
     },
     enabled: !!userId,
-    staleTime: 5 * 60 * 1000,
+    staleTime: 2 * 60 * 1000, // Reduced from 5 minutes to 2 minutes
   });
 };
 
-// Quiz-related queries - optimized
 export const useQuizzes = () => {
   return useQuery({
     queryKey: QUERY_KEYS.quizzes,
@@ -75,8 +74,8 @@ export const useQuizzes = () => {
       if (error) throw error;
       return data;
     },
-    staleTime: 15 * 60 * 1000, // Quizzes change less frequently, cache for 15 minutes
-    gcTime: 30 * 60 * 1000, // Keep in cache for 30 minutes
+    staleTime: 3 * 60 * 1000, // Reduced from 15 minutes to 3 minutes
+    gcTime: 10 * 60 * 1000, // Reduced from 30 minutes to 10 minutes
     refetchOnWindowFocus: false, // Don't refetch on window focus
   });
 };
@@ -238,9 +237,9 @@ export const useLeaderboard = () => {
       
       return data || [];
     },
-    staleTime: 2 * 60 * 1000, // Cache for 2 minutes instead of 30 seconds
-    gcTime: 5 * 60 * 1000, // Keep in cache for 5 minutes
-    refetchInterval: 3 * 60 * 1000, // Auto-refetch every 3 minutes instead of 1
+    staleTime: 1 * 60 * 1000, // Reduced to 1 minute for more frequent updates
+    gcTime: 3 * 60 * 1000, // Reduced to 3 minutes 
+    refetchInterval: 2 * 60 * 1000, // Reduced to 2 minutes for better freshness
     refetchOnWindowFocus: false, // Don't refetch on window focus for better performance
   });
 };
@@ -289,9 +288,15 @@ export const useCreateQuiz = () => {
       return data;
     },
     onSuccess: (data) => {
-      // Invalidate and refetch relevant queries
-      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.quizzes });
+      // Immediately update the quizzes list with optimistic update
+      queryClient.setQueryData(QUERY_KEYS.quizzes, (oldData: any) => {
+        if (!oldData) return [data];
+        return [data, ...oldData];
+      });
+      
+      // Invalidate related queries for full consistency
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.userQuizzes(data.created_by) });
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.analytics });
     },
   });
 };
@@ -311,12 +316,17 @@ export const useSubmitQuizAttempt = () => {
       return data;
     },
     onSuccess: (data) => {
-      // Invalidate relevant queries to update UI
+      // Smart cache invalidation - only invalidate what's necessary
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.userAttempts(data.user_id) });
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.userQuizAttempts(data.user_id, data.quiz_id) });
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.quizResults(data.quiz_id) });
-      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.leaderboard });
-      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.analytics });
+      
+      // For leaderboard and analytics, use a more targeted approach
+      // Only invalidate if this could potentially affect the top scores
+      if (data.score > 0) {
+        queryClient.invalidateQueries({ queryKey: QUERY_KEYS.leaderboard });
+        queryClient.invalidateQueries({ queryKey: QUERY_KEYS.analytics });
+      }
     },
   });
 };
@@ -337,10 +347,20 @@ export const useUpdateUserProfile = () => {
       return data;
     },
     onSuccess: (data) => {
-      // Update the specific user query cache
+      // Optimistically update the specific user cache
       queryClient.setQueryData(QUERY_KEYS.user(data.id), data);
-      // Invalidate users list
-      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.users });
+      
+      // Update the users list optimistically
+      queryClient.setQueryData(QUERY_KEYS.users, (oldData: any) => {
+        if (!oldData) return [data];
+        return oldData.map((user: any) => user.id === data.id ? data : user);
+      });
+      
+      // Only invalidate analytics if role changed (as it might affect admin counts)
+      const oldUser = queryClient.getQueryData(QUERY_KEYS.user(data.id)) as any;
+      if (oldUser?.role !== data.role) {
+        queryClient.invalidateQueries({ queryKey: QUERY_KEYS.analytics });
+      }
     },
   });
 };

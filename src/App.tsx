@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { Layout } from './components/Layout';
 import { LoginForm } from './components/LoginForm';
@@ -12,31 +12,104 @@ import { QuizResults } from './components/QuizResults';
 import { usePrefetch } from './hooks/usePrefetch';
 import { Quiz, QuizAttempt } from './types';
 
-type AppState = 'login' | 'reset-password' | 'dashboard' | 'take-quiz' | 'view-results';
+type View = 'dashboard' | 'take-quiz' | 'view-results';
+
+interface AppState {
+  currentView: View;
+  selectedQuiz: Quiz | null;
+  selectedAttemptId: string | null;
+}
 
 function AppContent() {
-  const { user, loading, isAdmin } = useAuth();
-  const [currentState, setCurrentState] = useState<AppState>('login');
-  const [selectedQuiz, setSelectedQuiz] = useState<Quiz | null>(null);
-  const [selectedAttemptId, setSelectedAttemptId] = useState<string | null>(null);
+  const { user, loading, isAdmin, error } = useAuth();
+  const [appState, setAppState] = useState<AppState>({
+    currentView: 'dashboard',
+    selectedQuiz: null,
+    selectedAttemptId: null
+  });
 
-  // Enable intelligent prefetching for better performance
   usePrefetch();
 
-  // Check URL for reset password route
+  // Handle URL-based routing for password reset
   useEffect(() => {
-    const path = window.location.pathname;
-    const hash = window.location.hash;
-    
-    if (path === '/reset-password' || hash.includes('type=recovery')) {
-      setCurrentState('reset-password');
-    } else if (user) {
-      setCurrentState('dashboard');
-    } else {
-      setCurrentState('login');
-    }
-  }, [user]);
+    const handlePasswordReset = () => {
+      const path = window.location.pathname;
+      const hash = window.location.hash;
+      
+      if (path === '/reset-password' || hash.includes('type=recovery')) {
+        // Let the component handle this case
+        return;
+      }
+    };
 
+    if (!user && !loading) {
+      handlePasswordReset();
+    }
+  }, [user, loading]);
+
+  // Reset app state when user logs out
+  useEffect(() => {
+    if (!user && !loading) {
+      setAppState({
+        currentView: 'dashboard',
+        selectedQuiz: null,
+        selectedAttemptId: null
+      });
+    }
+  }, [user, loading]);
+
+  const handleTakeQuiz = useCallback((quiz: Quiz) => {
+    setAppState({
+      currentView: 'take-quiz',
+      selectedQuiz: quiz,
+      selectedAttemptId: null
+    });
+  }, []);
+
+  const handleViewResults = useCallback((attempt: QuizAttempt) => {
+    setAppState({
+      currentView: 'view-results',
+      selectedQuiz: null,
+      selectedAttemptId: attempt.id
+    });
+  }, []);
+
+  const handleBackToDashboard = useCallback(() => {
+    setAppState({
+      currentView: 'dashboard',
+      selectedQuiz: null,
+      selectedAttemptId: null
+    });
+  }, []);
+
+  const handleQuizComplete = useCallback((attemptId?: string) => {
+    if (attemptId) {
+      setAppState({
+        currentView: 'view-results',
+        selectedQuiz: null,
+        selectedAttemptId: attemptId
+      });
+    } else {
+      handleBackToDashboard();
+    }
+  }, [handleBackToDashboard]);
+
+  const handlePasswordResetBack = useCallback(() => {
+    window.location.href = '/';
+  }, []);
+  
+  const getTitle = useCallback((): string => {
+    switch (appState.currentView) {
+      case 'take-quiz': 
+        return appState.selectedQuiz?.title || 'Take Quiz';
+      case 'view-results': 
+        return 'Quiz Results';
+      default: 
+        return isAdmin ? 'Admin Dashboard' : 'Dashboard';
+    }
+  }, [appState.currentView, appState.selectedQuiz?.title, isAdmin]);
+
+  // Show loading screen while auth is initializing
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-900 flex items-center justify-center">
@@ -45,46 +118,46 @@ function AppContent() {
     );
   }
 
-  // Handle reset password state
-  if (currentState === 'reset-password') {
-    return <ResetPassword onBack={() => setCurrentState('login')} />;
-  }
-
+  // Handle unauthenticated users
   if (!user) {
+    const path = window.location.pathname;
+    const hash = window.location.hash;
+    
+    // Show password reset form if on reset password route
+    if (path === '/reset-password' || hash.includes('type=recovery')) {
+      return (
+        <ResetPassword onBack={handlePasswordResetBack} />
+      );
+    }
+    
+    // Show login form
     return <LoginForm />;
   }
 
-  const handleTakeQuiz = (quiz: Quiz) => {
-    setSelectedQuiz(quiz);
-    setCurrentState('take-quiz');
-  };
-  const handleViewResults = (attempt: QuizAttempt) => {
-    setSelectedAttemptId(attempt.id);
-    setCurrentState('view-results');
-  };
-  const handleBackToDashboard = () => {
-    setCurrentState('dashboard');
-    setSelectedQuiz(null);
-    setSelectedAttemptId(null);
-  };
-  const handleQuizComplete = (attemptId?: string) => {
-    if (attemptId) {
-      setSelectedAttemptId(attemptId);
-      setCurrentState('view-results');
-    }
-  };
+  // Show error state if there's an auth error
+  if (error) {
+    return (
+      <div className="min-h-screen bg-gray-900 flex items-center justify-center">
+        <div className="bg-red-900/20 border border-red-500 rounded-lg p-6 max-w-md">
+          <h2 className="text-red-400 text-lg font-semibold mb-2">
+            Authentication Error
+          </h2>
+          <p className="text-red-300 mb-4">{error}</p>
+          <button
+            onClick={() => window.location.reload()}
+            className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded transition-colors"
+          >
+            Retry
+          </button>
+        </div>
+      </div>
+    );
+  }
 
-  const getTitle = () => {
-    switch (currentState) {
-      case 'take-quiz': return selectedQuiz?.title || 'Take Quiz';
-      case 'view-results': return 'Quiz Results';
-      default: return isAdmin ? 'Admin Dashboard' : 'Dashboard';
-    }
-  };
-
+  // Render authenticated user interface
   return (
     <Layout title={getTitle()}>
-      {currentState === 'dashboard' && (
+      {appState.currentView === 'dashboard' && (
         <>
           {isAdmin ? (
             <AdminDashboard />
@@ -97,17 +170,17 @@ function AppContent() {
         </>
       )}
       
-      {currentState === 'take-quiz' && selectedQuiz && (
+      {appState.currentView === 'take-quiz' && appState.selectedQuiz && (
         <QuizTaker
-          quiz={selectedQuiz}
+          quiz={appState.selectedQuiz}
           onBack={handleBackToDashboard}
           onComplete={handleQuizComplete}
         />
       )}
       
-      {currentState === 'view-results' && selectedAttemptId && (
+      {appState.currentView === 'view-results' && appState.selectedAttemptId && (
         <QuizResults
-          attemptId={selectedAttemptId}
+          attemptId={appState.selectedAttemptId}
           onBack={handleBackToDashboard}
         />
       )}

@@ -22,20 +22,19 @@ FROM information_schema.columns
 WHERE table_name = 'users' 
 ORDER BY ordinal_position;
 
--- STEP 4: Create some test users with bcrypt passwords
--- Password for all test users will be "pass123"
--- Bcrypt hash: $2b$12$nAuLLv8lKsTMI55GaZgARutOUiu7qJhIrUfHlks9F7hYnl3v0mxLy
+-- STEP 4: Create test users through Supabase Auth
+-- Note: Test users should be created through the application's registration flow
+-- or through Supabase Auth admin functions, not directly in the users table
+-- The database trigger will automatically create profiles when users sign up
 
-INSERT INTO users (id, username, email, role, password, created_at) VALUES
-('11111111-1111-1111-1111-111111111111', 'admin', 'admin@example.com', 'admin', '$2b$12$nAuLLv8lKsTMI55GaZgARutOUiu7qJhIrUfHlks9F7hYnl3v0mxLy', NOW()),
-('22222222-2222-2222-2222-222222222222', 'john_doe', 'john@example.com', 'user', '$2b$12$nAuLLv8lKsTMI55GaZgARutOUiu7qJhIrUfHlks9F7hYnl3v0mxLy', NOW()),
-('33333333-3333-3333-3333-333333333333', 'jane_smith', 'jane@example.com', 'user', '$2b$12$nAuLLv8lKsTMI55GaZgARutOUiu7qJhIrUfHlks9F7hYnl3v0mxLy', NOW()),
-('44444444-4444-4444-4444-444444444444', 'mike_wilson', 'mike@example.com', 'user', '$2b$12$nAuLLv8lKsTMI55GaZgARutOUiu7qJhIrUfHlks9F7hYnl3v0mxLy', NOW());
+-- Example users can be created through Supabase Dashboard or Auth API:
+-- 1. admin@example.com (role: admin)
+-- 2. john@example.com (role: user) 
+-- 3. jane@example.com (role: user)
+-- 4. mike@example.com (role: user)
 
 -- STEP 5: Verify the data
-SELECT id, username, email, role, 
-       CASE WHEN password IS NOT NULL THEN 'HAS PASSWORD' ELSE 'NO PASSWORD' END as password_status,
-       created_at
+SELECT id, username, email, role, created_at
 FROM users 
 ORDER BY created_at;
 

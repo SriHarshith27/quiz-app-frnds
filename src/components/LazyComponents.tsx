@@ -6,7 +6,6 @@ export const LazyEnhancedAnalytics = lazy(() => import('./EnhancedAnalytics').th
 export const LazyUserManagement = lazy(() => import('./UserManagement').then(module => ({ default: module.UserManagement })));
 export const LazyCredentialManagement = lazy(() => import('./CredentialManagement').then(module => ({ default: module.CredentialManagement })));
 export const LazyAllQuizResults = lazy(() => import('./AllQuizResults').then(module => ({ default: module.AllQuizResults })));
-export const LazyLegacyUserManagement = lazy(() => import('./LegacyUserManagement').then(module => ({ default: module.LegacyUserManagement })));
 
 // Fallback component for lazy loading
 export const LazyFallback: React.FC<{ text?: string }> = ({ text = 'Loading...' }) => (
