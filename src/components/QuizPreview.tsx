@@ -47,18 +47,25 @@ export const QuizPreview: React.FC<QuizPreviewProps> = ({ quiz, onBack, onStartQ
 
   const loadQuizDetails = async () => {
     try {
-      // Load sample questions for preview - optimized query fetching only needed fields
-      // Fetches: question text, options array, and category for display
-      const { data: questionsData } = await supabase
+      setLoading(true);
+      
+      // Load sample questions for preview
+      const { data: questionsData, error: questionsError } = await supabase
         .from('questions')
         .select('id, question, options, category')
         .eq('quiz_id', quiz.id)
         .limit(3);
 
-      if (questionsData) {
+      if (questionsError) {
+        console.error('Error loading questions:', questionsError);
+        // Don't fail completely, just log the error
+      }
+
+      if (questionsData && questionsData.length > 0) {
         setQuestions(questionsData);
+        
         // Calculate difficulty based on question complexity
-        const avgLength = questionsData.reduce((sum, q) => sum + q.question.length, 0) / questionsData.length;
+        const avgLength = questionsData.reduce((sum, q) => sum + (q.question?.length || 0), 0) / questionsData.length;
         if (avgLength > 100) setDifficulty('Hard');
         else if (avgLength > 50) setDifficulty('Medium');
         else setDifficulty('Easy');
@@ -66,17 +73,20 @@ export const QuizPreview: React.FC<QuizPreviewProps> = ({ quiz, onBack, onStartQ
 
       // Check if the quiz is favorited by the current user
       if (user) {
-        const { data: favorite } = await supabase
+        const { data: favorite, error: favoriteError } = await supabase
           .from('user_favorites')
           .select('user_id')
           .eq('user_id', user.id)
           .eq('quiz_id', quiz.id)
           .single();
         
-        setIsFavorited(!!favorite);
+        if (!favoriteError && favorite) {
+          setIsFavorited(true);
+        }
       }
     } catch (error) {
       console.error('Error loading quiz details:', error);
+      // Don't throw error, allow component to render with available data
     } finally {
       setLoading(false);
     }

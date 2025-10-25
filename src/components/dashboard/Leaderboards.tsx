@@ -41,31 +41,36 @@ export const Leaderboards: React.FC = () => {
   const processedLeaderboard = React.useMemo(() => {
     if (!leaderboardData) return [];
     
-    // Group by user and get their best score
     const userScores = new Map();
     leaderboardData.forEach((attempt: any) => {
-      const userId = attempt.user_id;
+      const userId = attempt.user_id || attempt.userId;
       const currentBest = userScores.get(userId);
       
-      if (!currentBest || attempt.score > currentBest.score) {
+      // Calculate percentage score safely
+      const score = typeof attempt.score === 'number' 
+        ? attempt.score 
+        : parseFloat(attempt.score) || 0;
+      
+      const totalQuestions = attempt.total_questions || attempt.totalQuestions || 10;
+      const percentage = totalQuestions > 0 ? (score / totalQuestions) * 100 : 0;
+      
+      if (!currentBest || percentage > currentBest.percentage) {
         userScores.set(userId, {
           userId,
-          username: attempt.users?.username || 'Anonymous',
-          score: attempt.score,
-          completedAt: attempt.completed_at,
-          timeTaken: attempt.time_taken || 0
+          username: attempt.users?.username || attempt.username || 'Anonymous',
+          score: Math.round(percentage),
+          completedAt: attempt.completed_at || attempt.completedAt,
+          timeTaken: attempt.time_taken || attempt.timeSpent || 0
         });
       }
     });
     
-    // Convert to array and sort by score
     return Array.from(userScores.values())
       .sort((a, b) => {
         if (b.score !== a.score) return b.score - a.score;
-        // If scores are equal, sort by time taken (less time is better)
         return a.timeTaken - b.timeTaken;
       })
-      .slice(0, 10); // Top 10
+      .slice(0, 10);
   }, [leaderboardData]);
 
   if (quizzesLoading) {

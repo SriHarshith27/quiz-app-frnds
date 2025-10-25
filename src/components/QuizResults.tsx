@@ -104,14 +104,32 @@ export const QuizResults: React.FC<QuizResultsProps> = ({ attemptId, onBack }) =
   };
 
   const generateDetailedAnswers = (answers: any, questions: any[]) => {
-    const userAnswers = typeof answers === 'string' ? JSON.parse(answers) : answers;
+    let parsedAnswers: any[];
+    
+    try {
+      if (typeof answers === 'string') {
+        parsedAnswers = JSON.parse(answers);
+      } else if (Array.isArray(answers)) {
+        parsedAnswers = answers;
+      } else {
+        console.error('Invalid answers format:', answers);
+        parsedAnswers = [];
+      }
+    } catch (error) {
+      console.error('Error parsing answers:', error);
+      parsedAnswers = [];
+    }
     
     const detailed = questions.map((question, index) => {
-      const userAnswer = userAnswers.find((a: any) => a.question_id === question.id) || userAnswers[index];
+      let userAnswer = parsedAnswers.find((a: any) => a.question_id === question.id);
+      
+      if (!userAnswer && parsedAnswers[index]) {
+        userAnswer = parsedAnswers[index];
+      }
       
       return {
         question: question.question,
-        options: question.options,
+        options: question.options || [],
         userAnswer: userAnswer?.selected_answer ?? null,
         correctAnswer: question.correct_answer,
         isCorrect: userAnswer?.is_correct || false,

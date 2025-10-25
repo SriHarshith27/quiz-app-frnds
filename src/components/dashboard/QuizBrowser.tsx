@@ -68,14 +68,30 @@ export const QuizBrowser: React.FC<QuizBrowserProps> = ({ onTakeQuiz }) => {
   if (isLoading) {
     return (
       <div className="space-y-6">
-        <h2 className="text-2xl font-bold">Available Quizzes</h2>
+        <div className="flex justify-between items-center">
+          <h2 className="text-2xl font-bold">Available Quizzes</h2>
+          <div className="flex items-center space-x-2 text-gray-400">
+            <div className="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+            <span>Loading quizzes...</span>
+          </div>
+        </div>
+        
+        <div className="bg-gray-700/30 rounded-lg p-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {[...Array(3)].map((_, i) => (
+              <div key={i} className="bg-gray-600/50 rounded-lg h-10 animate-pulse"></div>
+            ))}
+          </div>
+        </div>
+        
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {[...Array(6)].map((_, i) => (
-            <div key={i} className="bg-gray-700/50 rounded-lg p-6 animate-pulse">
-              <div className="h-6 bg-gray-600 rounded w-3/4 mb-4"></div>
-              <div className="h-4 bg-gray-600 rounded w-1/2 mb-2"></div>
-              <div className="h-4 bg-gray-600 rounded w-2/3 mb-4"></div>
-              <div className="h-10 bg-gray-600 rounded"></div>
+            <div key={i} className="bg-gray-700/50 rounded-lg p-6 space-y-4">
+              <div className="h-4 bg-gray-600 rounded w-3/4 animate-pulse"></div>
+              <div className="h-4 bg-gray-600 rounded w-1/2 animate-pulse"></div>
+              <div className="h-3 bg-gray-600 rounded w-2/3 animate-pulse"></div>
+              <div className="h-3 bg-gray-600 rounded w-full animate-pulse"></div>
+              <div className="h-10 bg-gray-600 rounded animate-pulse"></div>
             </div>
           ))}
         </div>

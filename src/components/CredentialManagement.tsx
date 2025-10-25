@@ -45,27 +45,32 @@ export const CredentialManagement: React.FC = () => {
     }
   };
 
+  // ... imports
+
+// ... component definition
+
   const handleResetPassword = async (user: User) => {
     try {
       setResetLoading(user.id);
       setError('');
       setSuccess('');
 
-      const result = await adminResetUserPassword(user.id, user.email);
+      // UPDATED: Pass only the email
+      const result = await adminResetUserPassword(user.email);
       
       if (result.success) {
         setSuccess(`Password reset sent to ${user.username} (${user.email})`);
-        // Clear success message after 5 seconds
         setTimeout(() => setSuccess(''), 5000);
       }
     } catch (err: any) {
       setError(err.message || 'Failed to reset password');
-      // Clear error message after 5 seconds
       setTimeout(() => setError(''), 5000);
     } finally {
       setResetLoading(null);
     }
   };
+
+// ... rest of the component
 
   if (!isAdmin) {
     return (

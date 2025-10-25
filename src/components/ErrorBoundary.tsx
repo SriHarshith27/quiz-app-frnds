@@ -8,6 +8,7 @@ interface Props {
 interface State {
   hasError: boolean;
   error?: Error;
+  errorInfo?: ErrorInfo;
 }
 
 export class ErrorBoundary extends Component<Props, State> {
@@ -22,6 +23,11 @@ export class ErrorBoundary extends Component<Props, State> {
   public componentDidCatch(error: Error, errorInfo: ErrorInfo) {
     console.error('Error caught by boundary:', error, errorInfo);
   }
+
+  private handleReset = () => {
+    this.setState({ hasError: false, error: undefined, errorInfo: undefined });
+    window.location.reload();
+  };
 
   public render() {
     if (this.state.hasError) {
@@ -39,22 +45,17 @@ export class ErrorBoundary extends Component<Props, State> {
             <p className="text-gray-400 mb-6">
               We encountered an unexpected error. Please refresh the page to try again.
             </p>
+            {this.state.error && (
+              <p className="text-red-400 text-sm mb-6 font-mono">
+                {this.state.error.message}
+              </p>
+            )}
             <button
-              onClick={() => window.location.reload()}
+              onClick={this.handleReset}
               className="w-full bg-gradient-to-r from-blue-500 to-purple-600 text-white py-3 px-4 rounded-lg font-medium hover:from-blue-600 hover:to-purple-700 transition-all"
             >
               Refresh Page
             </button>
-            {process.env.NODE_ENV === 'development' && (
-              <details className="mt-4 text-left">
-                <summary className="text-gray-400 cursor-pointer hover:text-white">
-                  Error Details (Development)
-                </summary>
-                <pre className="mt-2 text-xs text-red-400 bg-gray-900 p-2 rounded overflow-auto">
-                  {this.state.error?.stack}
-                </pre>
-              </details>
-            )}
           </div>
         </div>
       );

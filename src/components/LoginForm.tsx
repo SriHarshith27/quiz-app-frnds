@@ -29,7 +29,9 @@ export const LoginForm: React.FC = () => {
       if (isLogin) {
         await login(formData.email, formData.password);
       } else {
-        await register(formData.username, formData.email, formData.password);
+        const message = await register(formData.username, formData.email, formData.password);
+        setSuccessMessage(message); // Display the success message
+        setIsLogin(true); // Switch back to the login form
       }
     } catch (err: any) {
       setError(err.message || 'An error occurred');

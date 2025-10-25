@@ -1,4 +1,6 @@
-import React, { createContext, useContext, useEffect, useRef, useState, useCallback } from 'react';
+// src/contexts/AuthContext.tsx
+
+import React, { createContext, useContext, useEffect, useState, useRef, useCallback } from 'react';
 import { User } from '../types';
 import { supabase, getResetPasswordUrl } from '../lib/supabase';
 
@@ -11,8 +13,6 @@ interface AuthContextType {
   logout: () => Promise<void>;
   loading: boolean;
   isAdmin: boolean;
-  error: string | null;
-  clearError: () => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -28,86 +28,30 @@ export const useAuth = () => {
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [initialized, setInitialized] = useState(false);
-  
-  // Refs to prevent race conditions and memory leaks
+  const [error, setError] = useState<Error | null>(null);
   const mountedRef = useRef(true);
-  const authListenerRef = useRef<any>(null);
-  const currentUserRef = useRef<User | null>(null);
 
-  // Update refs when user changes
-  useEffect(() => {
-    currentUserRef.current = user;
-  }, [user]);
+  const getUserProfile = async (authUser: any): Promise<User | null> => {
+    try {
+      const { data: profile, error } = await supabase
+        .from('users')
+        .select('*')
+        .eq('id', authUser.id)
+        .single();
+      
+      if (error) throw error;
+      return profile;
 
-  // Cleanup on unmount
-  useEffect(() => {
-    return () => {
-      mountedRef.current = false;
-      if (authListenerRef.current) {
-        authListenerRef.current.subscription?.unsubscribe();
-        authListenerRef.current = null;
-      }
-    };
-  }, []);
-
-  const clearError = useCallback(() => {
-    setError(null);
-  }, []);
-
-  const handleError = useCallback((error: Error | string) => {
-    const message = typeof error === 'string' ? error : error.message;
-    console.error('Auth Error:', message);
-    if (mountedRef.current) {
-      setError(message);
+    } catch (error) {
+      console.error("Error fetching user profile:", error);
+      return null;
     }
-  }, []);
+  };
 
-  const ensureUserProfile = useCallback(async (authUser: any): Promise<User | null> => {
-    if (!mountedRef.current) return null;
-
-    const maxRetries = 5;
-    const retryDelay = 1000; // 1 second
-
-    for (let attempt = 0; attempt < maxRetries; attempt++) {
-      try {
-        // Try to get existing profile (database trigger should have created it)
-        const { data: profile, error } = await supabase
-          .from('users')
-          .select('*')
-          .eq('id', authUser.id)
-          .single();
-
-        // If profile exists, return it
-        if (profile && !error) {
-          return profile;
-        }
-
-        // If error is not "not found", log it and return null
-        if (error && error.code !== 'PGRST116') {
-          console.error('Error fetching profile:', error);
-          return null;
-        }
-
-        // Profile doesn't exist yet, wait for database trigger to create it
-        if (attempt < maxRetries - 1) {
-          console.log(`Profile not found for user ${authUser.id}, waiting for database trigger (attempt ${attempt + 1}/${maxRetries})`);
-          await new Promise(resolve => setTimeout(resolve, retryDelay));
-          continue;
-        }
-
-        // If we've exhausted all retries, log an error
-        console.error(`Profile creation failed for user ${authUser.id} after ${maxRetries} attempts. Database trigger may have failed.`);
-        return null;
-
-      } catch (error) {
-        console.error('Error in ensureUserProfile:', error);
-        return null;
-      }
-    }
-
-    return null;
+  const handleError = useCallback((err: Error) => {
+    console.error('Auth error:', err);
+    setError(err);
   }, []);
 
   const updateUserState = useCallback(async (authUser: any) => {
@@ -115,12 +59,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     try {
       if (authUser) {
-        const profile = await ensureUserProfile(authUser);
-        if (mountedRef.current && profile) {
+        const profile = await getUserProfile(authUser);
+        if (mountedRef.current) {
           setUser(profile);
-        } else if (mountedRef.current) {
-          setUser(null);
-          handleError('Failed to load user profile');
         }
       } else {
         if (mountedRef.current) {
@@ -128,27 +69,26 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
       }
     } catch (error) {
+      console.error('Error updating user state:', error);
       if (mountedRef.current) {
         handleError(error as Error);
-        setUser(null);
       }
     } finally {
-      if (mountedRef.current && !initialized) {
+      if (mountedRef.current) {
         setLoading(false);
         setInitialized(true);
       }
     }
-  }, [ensureUserProfile, handleError, initialized]);
+  }, [handleError]);
 
-  // Initialize auth state and set up listener
   useEffect(() => {
     if (initialized) return;
 
     let isCancelled = false;
+    let authSubscription: any = null;
 
     const initAuth = async () => {
       try {
-        // Get initial session
         const { data: { session }, error } = await supabase.auth.getSession();
         
         if (error) {
@@ -161,24 +101,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           return;
         }
 
-        // Set up auth state change listener
         const { data: { subscription } } = supabase.auth.onAuthStateChange(
           async (event, session) => {
             if (isCancelled || !mountedRef.current) return;
-            
             console.log('Auth state change:', event, !!session);
-            
-            // Clear any previous errors on state change
             setError(null);
-            
             await updateUserState(session?.user || null);
           }
         );
 
-        authListenerRef.current = { subscription };
+        authSubscription = subscription;
 
-        // Process initial session
-        if (!isCancelled) {
+        if (!isCancelled && mountedRef.current) {
           await updateUserState(session?.user || null);
         }
 
@@ -196,153 +130,66 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     return () => {
       isCancelled = true;
+      if (authSubscription) {
+        authSubscription.unsubscribe();
+        authSubscription = null;
+      }
     };
   }, [initialized, updateUserState, handleError]);
 
-  const login = useCallback(async (email: string, password: string): Promise<void> => {
-    if (!mountedRef.current) return;
-    
-    setError(null);
-    
-    try {
-      // Try Supabase auth
-      const { error } = await supabase.auth.signInWithPassword({ 
-        email, 
-        password 
-      });
-      
-      if (error) {
-        throw new Error(error.message);
-      }
-
-      // User state will be updated by the auth listener
-      // No need to manually set user here to avoid race conditions
-      
-    } catch (error) {
-      handleError(error as Error);
-      throw error;
-    }
-  }, [handleError]);
-
-  const register = useCallback(async (username: string, email: string, password: string): Promise<void> => {
-    if (!mountedRef.current) return;
-    
-    setError(null);
-    
-    try {
-      const { error } = await supabase.auth.signUp({
-        email,
-        password,
-        options: { 
-          data: { username } 
-        }
-      });
-      
-      if (error) {
-        throw new Error(error.message);
-      }
-
-      // User state will be updated by the auth listener
-      // No need to manually set user here to avoid race conditions
-      
-    } catch (error) {
-      handleError(error as Error);
-      throw error;
-    }
-  }, [handleError]);
-
-  const resetPassword = useCallback(async (email: string): Promise<{ success: boolean; message: string }> => {
-    setError(null);
-    
-    try {
-      const redirectUrl = getResetPasswordUrl();
-      const { error } = await supabase.auth.resetPasswordForEmail(email, { 
-        redirectTo: redirectUrl 
-      });
-      
-      if (error) {
-        const errorMessage = error.message;
-        handleError(errorMessage);
-        return { success: false, message: errorMessage };
-      }
-      
-      return { 
-        success: true, 
-        message: `Password reset email sent to ${email}.` 
-      };
-    } catch (error) {
-      const errorMessage = (error as Error).message;
-      handleError(errorMessage);
-      return { success: false, message: errorMessage };
-    }
-  }, [handleError]);
-  
-  const adminResetUserPassword = useCallback(async (email: string): Promise<{ success: boolean; message: string }> => {
-    if (currentUserRef.current?.role !== 'admin') {
-      const errorMessage = 'Permission denied. Admin access required.';
-      handleError(errorMessage);
-      throw new Error(errorMessage);
-    }
-    
-    setError(null);
-    
-    try {
-      const redirectUrl = getResetPasswordUrl();
-      const { error } = await supabase.auth.resetPasswordForEmail(email, { 
-        redirectTo: redirectUrl 
-      });
-      
-      if (error) {
-        throw new Error(error.message);
-      }
-      
-      return { 
-        success: true, 
-        message: `Password reset email sent to ${email}.` 
-      };
-    } catch (error) {
-      handleError(error as Error);
-      throw error;
-    }
-  }, [handleError]);
-
-  const logout = useCallback(async (): Promise<void> => {
-    setError(null);
-    
-    try {
-      const { error } = await supabase.auth.signOut();
-      if (error) {
-        console.error('Logout error:', error);
-        // Don't throw on logout errors, just log them
-      }
-      
-      // User state will be updated by the auth listener
-      // No need to manually set user here to avoid race conditions
-      
-    } catch (error) {
-      console.error('Logout error:', error);
-      // Don't throw on logout errors, just log them
-    }
+  useEffect(() => {
+    return () => {
+      mountedRef.current = false;
+    };
   }, []);
 
+  const login = async (email: string, password: string) => {
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) throw new Error(error.message);
+  };
+  
+  const register = async (username: string, email: string, password: string) => {
+    const { error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: { data: { username } }
+    });
+    if (error) throw new Error(error.message);
+    alert('Registration successful! Please check your email to confirm your account.');
+  };
+
+  const resetPassword = async (email: string) => {
+    const redirectUrl = getResetPasswordUrl();
+    const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo: redirectUrl });
+    if (error) return { success: false, message: error.message };
+    return { success: true, message: 'Password reset email sent.' };
+  };
+  
   const isAdmin = user?.role === 'admin';
 
-  const contextValue: AuthContextType = {
+  const adminResetUserPassword = async (email: string) => {
+    if (!isAdmin) throw new Error("Unauthorized");
+    const redirectUrl = getResetPasswordUrl();
+    const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo: redirectUrl });
+    if (error) throw error;
+    return { success: true, message: `Password reset sent to ${email}` };
+  };
+
+  const logout = async () => {
+    await supabase.auth.signOut();
+    setUser(null);
+  };
+
+  const value = {
     user,
     login,
     register,
     resetPassword,
     adminResetUserPassword,
     logout,
-    loading: loading && !initialized,
+    loading,
     isAdmin,
-    error,
-    clearError
   };
 
-  return (
-    <AuthContext.Provider value={contextValue}>
-      {children}
-    </AuthContext.Provider>
-  );
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };

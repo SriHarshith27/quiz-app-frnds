@@ -19,7 +19,6 @@ export const PerformanceAnalysis: React.FC = () => {
   const performanceData = useMemo(() => {
     if (!userAttempts || userAttempts.length === 0) return null;
 
-    // Group attempts by category
     const categoryMap = new Map<string, any[]>();
     
     userAttempts.forEach((attempt: any) => {
@@ -30,28 +29,33 @@ export const PerformanceAnalysis: React.FC = () => {
       categoryMap.get(category)!.push(attempt);
     });
 
-    // Calculate performance metrics for each category
     const categoryPerformance: CategoryPerformance[] = [];
     
     categoryMap.forEach((attempts, category) => {
-      const scores = attempts.map(a => a.score);
-      const averageScore = scores.reduce((sum, score) => sum + score, 0) / scores.length;
-      const bestScore = Math.max(...scores);
+      const scores = attempts.map(a => a.score || 0);
       
-      // Calculate recent trend (last 3 attempts vs previous 3)
+      // Safety check for empty arrays
+      if (scores.length === 0) return;
+      
+      const averageScore = scores.reduce((sum, score) => sum + score, 0) / scores.length;
+      const bestScore = Math.max(...scores, 0);
+      
       let recentTrend: 'up' | 'down' | 'stable' = 'stable';
       if (attempts.length >= 6) {
         const sortedByDate = attempts.sort((a, b) => 
           new Date(b.completed_at).getTime() - new Date(a.completed_at).getTime()
         );
-        const recentScores = sortedByDate.slice(0, 3).map(a => a.score);
-        const olderScores = sortedByDate.slice(3, 6).map(a => a.score);
+        const recentScores = sortedByDate.slice(0, 3).map(a => a.score || 0);
+        const olderScores = sortedByDate.slice(3, 6).map(a => a.score || 0);
         
-        const recentAvg = recentScores.reduce((sum, score) => sum + score, 0) / recentScores.length;
-        const olderAvg = olderScores.reduce((sum, score) => sum + score, 0) / olderScores.length;
-        
-        if (recentAvg > olderAvg + 5) recentTrend = 'up';
-        else if (recentAvg < olderAvg - 5) recentTrend = 'down';
+        // Safety check for division
+        if (recentScores.length > 0 && olderScores.length > 0) {
+          const recentAvg = recentScores.reduce((sum, score) => sum + score, 0) / recentScores.length;
+          const olderAvg = olderScores.reduce((sum, score) => sum + score, 0) / olderScores.length;
+          
+          if (recentAvg > olderAvg + 5) recentTrend = 'up';
+          else if (recentAvg < olderAvg - 5) recentTrend = 'down';
+        }
       }
 
       categoryPerformance.push({
@@ -63,19 +67,23 @@ export const PerformanceAnalysis: React.FC = () => {
       });
     });
 
-    // Sort by average score descending
     categoryPerformance.sort((a, b) => b.averageScore - a.averageScore);
 
     const strongAreas = categoryPerformance.filter(c => c.averageScore >= 75);
     const weakAreas = categoryPerformance.filter(c => c.averageScore < 50);
     const moderateAreas = categoryPerformance.filter(c => c.averageScore >= 50 && c.averageScore < 75);
 
+    // Safety check for average calculation
+    const overallAverage = categoryPerformance.length > 0
+      ? categoryPerformance.reduce((sum, c) => sum + c.averageScore, 0) / categoryPerformance.length
+      : 0;
+
     return {
       categoryPerformance,
       strongAreas,
       weakAreas,
       moderateAreas,
-      overallAverage: categoryPerformance.reduce((sum, c) => sum + c.averageScore, 0) / categoryPerformance.length
+      overallAverage
     };
   }, [userAttempts]);
 

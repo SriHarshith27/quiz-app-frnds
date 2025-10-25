@@ -28,10 +28,15 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({
 
   // Use React Query hooks for data fetching
   const { data: quizzes, isLoading: quizzesLoading } = useQuizzes();
-  const { data: userAttempts, isLoading: attemptsLoading } = useUserAttempts(user?.id || '');
+  
+  // UPDATED: Conditionally fetch user attempts only when the user ID is available
+  const { data: userAttempts, isLoading: attemptsLoading } = useUserAttempts(
+    user?.id || '', 
+    { enabled: !!user?.id } // This is the key change
+  );
 
   // Combine loading states
-  const loading = quizzesLoading || attemptsLoading;
+  const loading = quizzesLoading || (!!user && attemptsLoading);
 
   // Process data when it's loaded
   useEffect(() => {
@@ -43,14 +48,37 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({
           const isAvailableByStartTime = !quizStartTime || now >= quizStartTime;
           return isAvailableByStartTime;
         })
-        .map((quiz: any) => ({
-          ...quiz,
-          questionCount: quiz.questions?.[0]?.count || 0
-        }));
+        .map((quiz: any) => {
+          let questionCount = 0;
+          
+          if (quiz.questions) {
+            if (Array.isArray(quiz.questions)) {
+              if (quiz.questions.length > 0 && typeof quiz.questions[0] === 'object') {
+                if ('count' in quiz.questions[0]) {
+                  questionCount = quiz.questions[0].count;
+                } else if ('question' in quiz.questions[0]) {
+                  questionCount = quiz.questions.length;
+                }
+              }
+            }
+          }
+          
+          return {
+            ...quiz,
+            questionCount
+          };
+        });
       
       setFilteredQuizzes(processedQuizzes);
     }
   }, [quizzes, user]);
+
+  // Calculate user progress when attempts data changes
+  useEffect(() => {
+    if (userAttempts) {
+      calculateUserProgress(userAttempts);
+    }
+  }, [userAttempts]);
 
   // Calculate user progress when attempts data changes
   useEffect(() => {

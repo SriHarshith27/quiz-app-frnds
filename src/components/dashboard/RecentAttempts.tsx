@@ -87,7 +87,11 @@ export const RecentAttempts: React.FC<RecentAttemptsProps> = ({ onViewResults })
 
       <div className="space-y-4">
         {userAttempts.map((attempt: any, index: number) => {
-          const ScoreIcon = getScoreIcon(attempt.score);
+          // Safely calculate score percentage
+          const totalQuestions = attempt.total_questions || 10;
+          const score = attempt.score || 0;
+          const percentage = totalQuestions > 0 ? Math.round((score / totalQuestions) * 100) : 0;
+          const ScoreIcon = getScoreIcon(percentage);
           
           return (
             <motion.div
@@ -123,16 +127,16 @@ export const RecentAttempts: React.FC<RecentAttemptsProps> = ({ onViewResults })
 
                 <div className="flex items-center space-x-4">
                   <div className="text-right">
-                    <div className={`text-2xl font-bold ${getScoreColor(attempt.score)}`}>
-                      {attempt.score}%
+                    <div className={`text-2xl font-bold ${getScoreColor(percentage)}`}>
+                      {percentage}%
                     </div>
                     <div className="text-xs text-gray-400">
-                      {attempt.correct_answers}/{attempt.total_questions} correct
+                      {score}/{totalQuestions} correct
                     </div>
                   </div>
                   
                   <div className="flex items-center space-x-2">
-                    <ScoreIcon className={`w-6 h-6 ${getScoreColor(attempt.score)}`} />
+                    <ScoreIcon className={`w-6 h-6 ${getScoreColor(percentage)}`} />
                     <ExternalLink className="w-5 h-5 text-gray-400 group-hover:text-white transition-colors" />
                   </div>
                 </div>

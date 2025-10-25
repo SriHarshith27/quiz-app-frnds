@@ -58,25 +58,18 @@ export const useQuizzes = () => {
   return useQuery({
     queryKey: QUERY_KEYS.quizzes,
     queryFn: async () => {
+      // UPDATED: This query is now simplified to prevent join errors.
       const { data, error } = await supabase
         .from('quizzes')
-        .select(`
-          id,
-          title,
-          description,
-          created_at,
-          created_by,
-          questions (count),
-          users (username)
-        `)
+        .select('*') // Select all columns directly from the quizzes table
         .order('created_at', { ascending: false });
       
       if (error) throw error;
       return data;
     },
-    staleTime: 3 * 60 * 1000, // Reduced from 15 minutes to 3 minutes
-    gcTime: 10 * 60 * 1000, // Reduced from 30 minutes to 10 minutes
-    refetchOnWindowFocus: false, // Don't refetch on window focus
+    staleTime: 5 * 60 * 1000, // Cache for 5 minutes
+    gcTime: 10 * 60 * 1000,
+    refetchOnWindowFocus: false,
   });
 };
 
@@ -98,7 +91,7 @@ export const useQuiz = (quizId: string) => {
       return data;
     },
     enabled: !!quizId,
-    staleTime: 15 * 60 * 1000, // Individual quiz data is quite stable
+    staleTime: 15 * 60 * 1000, 
   });
 };
 
@@ -124,7 +117,7 @@ export const useUserQuizzes = (userId: string) => {
 };
 
 // Quiz attempts and results
-export const useUserAttempts = (userId: string) => {
+export const useUserAttempts = (userId: string, options: { enabled?: boolean } = {}) => {
   return useQuery({
     queryKey: QUERY_KEYS.userAttempts(userId),
     queryFn: async () => {
@@ -140,8 +133,9 @@ export const useUserAttempts = (userId: string) => {
       if (error) throw error;
       return data;
     },
-    enabled: !!userId,
-    staleTime: 1 * 60 * 1000, // User attempts change more frequently
+    // The 'enabled' option is now correctly passed to React Query
+    enabled: !!userId && (options.enabled ?? true),
+    staleTime: 1 * 60 * 1000,
   });
 };
 
@@ -191,56 +185,67 @@ export const useLeaderboard = () => {
   return useQuery({
     queryKey: QUERY_KEYS.leaderboard,
     queryFn: async () => {
-      // Use a more efficient query with CTE (Common Table Expression)
-      const { data, error } = await supabase.rpc('get_leaderboard', {
-        limit_count: 50
-      });
-      
-      if (error) {
-        // Fallback to original query if RPC fails
-        console.log('RPC failed, using fallback query');
+      try {
+        const { data, error } = await supabase.rpc('get_leaderboard', {
+          limit_count: 50
+        });
+        
+        if (!error && data) {
+          return data;
+        }
+        
+        console.log('RPC failed, using fallback query:', error);
+        
         const { data: fallbackData, error: fallbackError } = await supabase
           .from('quiz_attempts')
           .select(`
             user_id,
             score,
+            total_questions,
             quiz_id,
+            time_taken,
             completed_at,
             users!inner (username)
           `)
           .order('score', { ascending: false })
-          .limit(50);
+          .order('completed_at', { ascending: false })
+          .limit(200);
         
         if (fallbackError) throw fallbackError;
         
-        // Group by user and calculate best scores efficiently
         const userScoresMap = new Map();
+        
         fallbackData.forEach((attempt: any) => {
           const userId = attempt.user_id;
+          const percentage = (attempt.score / attempt.total_questions) * 100;
           const currentBest = userScoresMap.get(userId);
           
-          if (!currentBest || currentBest.score < attempt.score) {
+          if (!currentBest || percentage > currentBest.percentage) {
             userScoresMap.set(userId, {
               userId,
               username: attempt.users.username,
-              score: attempt.score,
+              score: percentage,
               quizId: attempt.quiz_id,
               completedAt: attempt.completed_at,
-              totalQuestions: 10, // Default assumption
-              timeSpent: 0 // Default assumption
+              totalQuestions: attempt.total_questions,
+              timeSpent: attempt.time_taken || 0
             });
           }
         });
         
-        return Array.from(userScoresMap.values()).sort((a: any, b: any) => b.score - a.score);
+        return Array.from(userScoresMap.values())
+          .sort((a: any, b: any) => b.score - a.score)
+          .slice(0, 50);
+          
+      } catch (error) {
+        console.error('Error fetching leaderboard:', error);
+        throw error;
       }
-      
-      return data || [];
     },
-    staleTime: 1 * 60 * 1000, // Reduced to 1 minute for more frequent updates
-    gcTime: 3 * 60 * 1000, // Reduced to 3 minutes 
-    refetchInterval: 2 * 60 * 1000, // Reduced to 2 minutes for better freshness
-    refetchOnWindowFocus: false, // Don't refetch on window focus for better performance
+    staleTime: 3 * 60 * 1000,
+    gcTime: 5 * 60 * 1000,
+    refetchInterval: false,
+    refetchOnWindowFocus: false,
   });
 };
 

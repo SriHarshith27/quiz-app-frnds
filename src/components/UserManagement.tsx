@@ -49,7 +49,8 @@ export const UserManagement: React.FC = () => {
       setError('');
       setSuccess('');
 
-      const result = await adminResetUserPassword(user.id, user.email);
+      // UPDATED: Pass only the email
+      const result = await adminResetUserPassword(user.email);
       
       if (result.success) {
         setSuccess(result.message);

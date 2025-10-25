@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Quiz, QuizAttempt } from '../types';
 import { DashboardLayout } from './dashboard/DashboardLayout';
 import { RecentAttempts } from './dashboard/RecentAttempts';
@@ -17,7 +17,7 @@ export const NewUserDashboard: React.FC<NewUserDashboardProps> = ({
 }) => {
   const [activeTab, setActiveTab] = useState<'recent' | 'performance' | 'leaderboard' | 'browse'>('recent');
 
-  const renderTabContent = () => {
+  const renderTabContent = useMemo(() => {
     switch (activeTab) {
       case 'recent':
         return <RecentAttempts onViewResults={onViewResults} />;
@@ -30,11 +30,11 @@ export const NewUserDashboard: React.FC<NewUserDashboardProps> = ({
       default:
         return <RecentAttempts onViewResults={onViewResults} />;
     }
-  };
+  }, [activeTab, onTakeQuiz, onViewResults]);
 
   return (
     <DashboardLayout activeTab={activeTab} onTabChange={setActiveTab}>
-      {renderTabContent()}
+      {renderTabContent}
     </DashboardLayout>
   );
 };

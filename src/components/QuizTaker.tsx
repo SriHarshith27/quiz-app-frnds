@@ -25,7 +25,7 @@ export const QuizTaker: React.FC<QuizTakerProps> = ({ quiz, onBack, onComplete, 
   const [timeUp, setTimeUp] = useState(false);
 
   useEffect(() => {
-    // Check quiz availability based on start_time before proceeding
+    // Check quiz availability based on start_time
     const now = new Date();
     const quizStartTime = quiz.start_time ? new Date(quiz.start_time) : null;
 
@@ -35,20 +35,22 @@ export const QuizTaker: React.FC<QuizTakerProps> = ({ quiz, onBack, onComplete, 
       return;
     }
 
-    // FIX: This condition is now more specific. It checks if the first item in the array has a 'question' property, 
-    // ensuring it's a real question object, not a count object.
-    if (quiz.questions && quiz.questions.length > 0 && quiz.questions[0].question) {
-      setQuestions(quiz.questions);
-      setLoading(false);
-      return;
+    // Simplified condition - just check if questions array exists and has items
+    if (quiz.questions && Array.isArray(quiz.questions) && quiz.questions.length > 0) {
+      const firstItem = quiz.questions[0];
+      if (firstItem && typeof firstItem === 'object' && 'question' in firstItem) {
+        setQuestions(quiz.questions);
+        setLoading(false);
+        return;
+      }
     }
     
-    loadQuestions(); // Call loadQuestions only if available
+    loadQuestions();
     
     if (quiz.time_limit) {
       setTimeRemaining(quiz.time_limit * 60);
     }
-  }, [quiz.id, quiz.questions]); // Ensure quiz object changes re-trigger this effect
+  }, [quiz.id, quiz.questions, quiz.start_time, quiz.time_limit]);
 
   useEffect(() => {
     if (timeRemaining > 0 && !showReview && !timeUp) {
@@ -140,25 +142,32 @@ export const QuizTaker: React.FC<QuizTakerProps> = ({ quiz, onBack, onComplete, 
   const handleSubmit = async () => {
     if (isPractice) return;
     
-    if (quiz.max_attempts) {
-      const { data: existingAttempts } = await supabase
-        .from('quiz_attempts')
-        .select('id')
-        .eq('user_id', user?.id)
-        .eq('quiz_id', quiz.id);
-      
-      if (existingAttempts && existingAttempts.length >= quiz.max_attempts) {
-        alert('You have reached the maximum number of attempts for this quiz.');
-        onBack();
-        return;
-      }
-    }
-
-    const score = answers.filter(a => a.is_correct).length;
-    const timeCompleted = Date.now();
-    const timeTaken = Math.round((timeCompleted - timeStarted) / 1000);
-
     try {
+      // Check attempt limits
+      if (quiz.max_attempts) {
+        const { data: existingAttempts, error: attemptsError } = await supabase
+          .from('quiz_attempts')
+          .select('id')
+          .eq('user_id', user?.id)
+          .eq('quiz_id', quiz.id);
+        
+        if (attemptsError) {
+          console.error('Error checking attempts:', attemptsError);
+          throw new Error('Failed to check attempt history');
+        }
+        
+        if (existingAttempts && existingAttempts.length >= quiz.max_attempts) {
+          alert('You have reached the maximum number of attempts for this quiz.');
+          onBack();
+          return;
+        }
+      }
+
+      const score = answers.filter(a => a.is_correct).length;
+      const timeCompleted = Date.now();
+      const timeTaken = Math.round((timeCompleted - timeStarted) / 1000);
+
+      // Set admin context
       if (user) {
         await supabase.rpc('set_config', {
           setting_name: 'app.current_user',
@@ -179,11 +188,15 @@ export const QuizTaker: React.FC<QuizTakerProps> = ({ quiz, onBack, onComplete, 
         .select()
         .single();
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error submitting quiz:', error);
+        throw new Error('Failed to submit quiz. Please try again.');
+      }
+      
       onComplete(attempt.id);
     } catch (error) {
       console.error('Error submitting quiz:', error);
-      alert('Failed to submit quiz. Please try again.');
+      alert(error instanceof Error ? error.message : 'Failed to submit quiz. Please try again.');
     }
   };
 

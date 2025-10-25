@@ -1,3 +1,5 @@
+// src/lib/supabase.ts
+
 import { createClient } from '@supabase/supabase-js';
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
@@ -7,11 +9,11 @@ if (!supabaseUrl || !supabaseAnonKey) {
   throw new Error('Missing Supabase environment variables');
 }
 
-// Create Supabase client with proper auth configuration
+// Create Supabase client with debug disabled
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
-    // Enable debug mode in development
-    debug: import.meta.env.MODE === 'development'
+    // This will stop the GoTrueClient messages from spamming your console
+    debug: false,
   }
 });
 
